@@ -145,13 +145,15 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $response['status'] = false;
                     $response['message'] = 'Invalid OTP';
                 } else {
-                    // OTP verified successfully - Clear it
-                    $update_sql = "UPDATE users SET otp = NULL WHERE mobile = '$mobile'";
+                    // OTP verified successfully - Generate token
+                    $token = bin2hex(random_bytes(32)); // Generate 64-character token
+                    $update_sql = "UPDATE users SET otp = NULL, token = '$token', token_created_at = NOW() WHERE mobile = '$mobile'";
                     $conn->query($update_sql);
                     
                     $response['status'] = true;
                     $response['message'] = 'OTP verified successfully';
                     $response['mobile'] = $mobile;
+                    $response['token'] = $token;
                 }
             }
         } else {

@@ -5,6 +5,12 @@ CREATE TABLE IF NOT EXISTS users (
     otp VARCHAR(6) NULL,
     otp_created_at DATETIME NULL,
     otp_expires_at DATETIME NULL,
+    token VARCHAR(255) NULL,
+    token_created_at DATETIME NULL,
+    city VARCHAR(100) NULL,
+    latitude DECIMAL(10, 8) NULL,
+    longitude DECIMAL(11, 8) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
