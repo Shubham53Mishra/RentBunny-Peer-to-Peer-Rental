@@ -59,6 +59,7 @@ $add_id = intval($input['add_id']);
 $brand = isset($input['brand']) ? mysqli_real_escape_string($conn, $input['brand']) : null;
 $product_type = isset($input['product_type']) ? mysqli_real_escape_string($conn, $input['product_type']) : null;
 $price_per_month = isset($input['price_per_month']) ? floatval($input['price_per_month']) : null;
+$security_deposit = isset($input['security_deposit']) ? floatval($input['security_deposit']) : null;
 $description = isset($input['description']) ? mysqli_real_escape_string($conn, $input['description']) : null;
 
 // Map to existing table columns

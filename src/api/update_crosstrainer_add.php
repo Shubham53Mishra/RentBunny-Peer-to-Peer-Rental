@@ -59,6 +59,7 @@ $add_id = intval($input['add_id']);
 $brand = isset($input['brand']) ? mysqli_real_escape_string($conn, $input['brand']) : null;
 $product_type = isset($input['product_type']) ? mysqli_real_escape_string($conn, $input['product_type']) : null;
 $price_per_month = isset($input['price_per_month']) ? floatval($input['price_per_month']) : null;
+$max_user_weight = isset($input['max_user_weight']) ? floatval($input['max_user_weight']) : null;
 $description = isset($input['description']) ? mysqli_real_escape_string($conn, $input['description']) : null;
 
 // Map to existing table columns
