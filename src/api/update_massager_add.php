@@ -44,31 +44,28 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') {
     exit;
 }
 
-// Required fields for massager ad update
-$required_fields = ['brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'add_id'];
-
 // Get JSON data
 $input = json_decode(file_get_contents('php://input'), true);
 
-foreach($required_fields as $field) {
-    if(!isset($input[$field])) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => "Missing required field: $field"]);
-        exit;
-    }
+// Required fields - only add_id
+if(!isset($input['add_id'])) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => "Missing required field: add_id"]);
+    exit;
 }
 
-// Sanitize input
+// Sanitize input - optional fields
 $add_id = intval($input['add_id']);
-$brand = mysqli_real_escape_string($conn, $input['brand']);
-$product_type = mysqli_real_escape_string($conn, $input['product_type']);
-$price_per_month = floatval($input['price_per_month']);
-$security_deposit = floatval($input['security_deposit']);
-$ad_title = mysqli_real_escape_string($conn, $input['ad_title']);
-$description = mysqli_real_escape_string($conn, $input['description']);
+$brand = isset($input['brand']) ? mysqli_real_escape_string($conn, $input['brand']) : null;
+$product_type = isset($input['product_type']) ? mysqli_real_escape_string($conn, $input['product_type']) : null;
+$price_per_month = isset($input['price_per_month']) ? floatval($input['price_per_month']) : null;
+$description = isset($input['description']) ? mysqli_real_escape_string($conn, $input['description']) : null;
 
 // Map to existing table columns
-$title = "$product_type - $brand";
+$title = null;
+if($product_type && $brand) {
+    $title = "$product_type - $brand";
+}
 $price = $price_per_month;
 $condition = 'good';
 
@@ -83,9 +80,14 @@ if($verify_result->num_rows == 0) {
     exit;
 }
 
-// Update database
-$update_sql = "UPDATE $table_name SET title = '$title', description = '$description', price = '$price', 
-               `condition` = '$condition', updated_at = NOW() WHERE id = '$add_id' AND user_id = '$user_id'";
+// Update database - dynamic query
+$update_fields = [];
+if($title) $update_fields[] = "title = '$title'";
+if($description) $update_fields[] = "description = '$description'";
+if($price) $update_fields[] = "price = '$price'";
+
+$update_fields[] = "updated_at = NOW()";
+$update_sql = "UPDATE $table_name SET " . implode(', ', $update_fields) . " WHERE id = '$add_id' AND user_id = '$user_id'";
 
 if($conn->query($update_sql)) {
     http_response_code(200);
