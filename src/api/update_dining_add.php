@@ -58,7 +58,7 @@ foreach($required_fields as $field) {
     }
 }
 
-// Sanitize input
+// Sanitize input and map to existing table columns
 $add_id = intval($input['add_id']);
 $height = floatval($input['height']);
 $length = floatval($input['length']);
@@ -70,7 +70,12 @@ $security_deposit = floatval($input['security_deposit']);
 $ad_title = mysqli_real_escape_string($conn, $input['ad_title']);
 $description = mysqli_real_escape_string($conn, $input['description']);
 
-$table_name = 'dining_table_adds';
+// Map to existing table columns
+$title = "$product_type - $primary_material ($length x $width x $height)";
+$price = $price_per_month;
+$condition = 'good';
+
+$table_name = 'dining_adds';
 
 // Verify ownership
 $verify_sql = "SELECT id FROM $table_name WHERE id = '$add_id' AND user_id = '$user_id'";
@@ -81,11 +86,9 @@ if($verify_result->num_rows == 0) {
     exit;
 }
 
-// Update database
-$update_sql = "UPDATE $table_name SET height = '$height', length = '$length', width = '$width', 
-               primary_material = '$primary_material', product_type = '$product_type', price_per_month = '$price_per_month', 
-               security_deposit = '$security_deposit', ad_title = '$ad_title', description = '$description', updated_at = NOW() 
-               WHERE id = '$add_id' AND user_id = '$user_id'";
+// Update database using existing table columns
+$update_sql = "UPDATE $table_name SET title = '$title', description = '$description', price = '$price', 
+               `condition` = '$condition', updated_at = NOW() WHERE id = '$add_id' AND user_id = '$user_id'";
 
 if($conn->query($update_sql)) {
     $response['success'] = true;

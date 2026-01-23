@@ -70,6 +70,11 @@ $kilometer_driven = intval($input['kilometer_driven']);
 $ad_title = mysqli_real_escape_string($conn, $input['ad_title']);
 $description = mysqli_real_escape_string($conn, $input['description']);
 
+// Map to existing table columns
+$title = "$brand $variant - $year ($kilometer_driven km)";
+$price = $price_per_month;
+$condition = 'good';
+
 // Determine table name and verify ownership
 $tables = ['petrol_bike_adds', 'electric_bike_adds'];
 $table_name = '';
@@ -89,11 +94,9 @@ if(empty($table_name)) {
     exit;
 }
 
-// Update database
-$update_sql = "UPDATE $table_name SET brand = '$brand', variant = '$variant', year = '$year', 
-               price_per_month = '$price_per_month', security_deposit = '$security_deposit', 
-               kilometer_driven = '$kilometer_driven', ad_title = '$ad_title', description = '$description',
-               updated_at = NOW() WHERE id = '$add_id' AND user_id = '$user_id'";
+// Update database using existing table columns
+$update_sql = "UPDATE $table_name SET title = '$title', description = '$description', price = '$price', 
+               `condition` = '$condition', updated_at = NOW() WHERE id = '$add_id' AND user_id = '$user_id'";
 
 if($conn->query($update_sql)) {
     $response['success'] = true;

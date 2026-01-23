@@ -1,8 +1,17 @@
 <?php
 header('Content-Type: application/json');
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 require_once('../common/db.php');
 
 $response = array();
+
+// Debug: Check database connection
+if(!$conn) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Database connection failed', 'error' => mysqli_connect_error()]);
+    exit;
+}
 
 // Get token from header
 $token = '';
@@ -29,6 +38,11 @@ if(empty($token)) {
 $token = mysqli_real_escape_string($conn, $token);
 $sql = "SELECT id FROM users WHERE token = '$token' AND token IS NOT NULL";
 $result = $conn->query($sql);
+if(!$result) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Database query failed', 'error' => $conn->error]);
+    exit;
+}
 if($result->num_rows == 0) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Invalid token']);
@@ -44,11 +58,23 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') {
     exit;
 }
 
-// Required fields for sofa ad update
-$required_fields = ['frame_material', 'seating_capacity', 'seat_foam_type', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'add_id'];
+// Required fields for Drum ad
+$required_fields = ['brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
 
 // Get JSON data
 $input = json_decode(file_get_contents('php://input'), true);
+
+if($input === null && file_get_contents('php://input') !== '') {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid JSON format']);
+    exit;
+}
+
+if(!is_array($input)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'No JSON data received']);
+    exit;
+}
 
 foreach($required_fields as $field) {
     if(!isset($input[$field])) {
@@ -58,48 +84,40 @@ foreach($required_fields as $field) {
     }
 }
 
-// Sanitize input and map to existing table columns
-$add_id = intval($input['add_id']);
-$frame_material = mysqli_real_escape_string($conn, $input['frame_material']);
-$seating_capacity = intval($input['seating_capacity']);
-$seat_foam_type = mysqli_real_escape_string($conn, $input['seat_foam_type']);
+// Sanitize input
+$brand = mysqli_real_escape_string($conn, $input['brand']);
 $product_type = mysqli_real_escape_string($conn, $input['product_type']);
 $price_per_month = floatval($input['price_per_month']);
 $security_deposit = floatval($input['security_deposit']);
 $ad_title = mysqli_real_escape_string($conn, $input['ad_title']);
 $description = mysqli_real_escape_string($conn, $input['description']);
+$latitude = floatval($input['latitude']);
+$longitude = floatval($input['longitude']);
+$city = mysqli_real_escape_string($conn, $input['city']);
 
 // Map to existing table columns
-$title = "$product_type - $seating_capacity Seater ($frame_material)";
+$title = "$brand $product_type - $ad_title";
 $price = $price_per_month;
 $condition = 'good';
 
-$table_name = 'sofa_adds';
+$table_name = 'drum_adds';
 
-// Verify ownership
-$verify_sql = "SELECT id FROM $table_name WHERE id = '$add_id' AND user_id = '$user_id'";
-$verify_result = $conn->query($verify_sql);
-if($verify_result->num_rows == 0) {
-    http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Unauthorized access to this ad']);
-    exit;
-}
+// Insert into database using existing table columns
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, created_at, updated_at)
+               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', NOW(), NOW())";
 
-// Update database using existing table columns
-$update_sql = "UPDATE $table_name SET title = '$title', description = '$description', price = '$price', 
-               `condition` = '$condition', updated_at = NOW() WHERE id = '$add_id' AND user_id = '$user_id'";
-
-if($conn->query($update_sql)) {
+if($conn->query($insert_sql)) {
+    $add_id = $conn->insert_id;
     $response['success'] = true;
-    $response['message'] = 'Sofa ad updated successfully';
+    $response['message'] = 'Drum ad created successfully';
     $response['data'] = [
         'add_id' => $add_id,
-        'updated_at' => date('Y-m-d H:i:s')
+        'created_at' => date('Y-m-d H:i:s')
     ];
 } else {
     http_response_code(500);
     $response['success'] = false;
-    $response['message'] = 'Failed to update sofa ad: ' . $conn->error;
+    $response['message'] = 'Failed to create drum ad: ' . $conn->error;
 }
 
 echo json_encode($response);

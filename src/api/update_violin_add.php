@@ -44,8 +44,8 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') {
     exit;
 }
 
-// Required fields for sofa ad update
-$required_fields = ['frame_material', 'seating_capacity', 'seat_foam_type', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'add_id'];
+// Required fields for violin ad update
+$required_fields = ['brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'add_id'];
 
 // Get JSON data
 $input = json_decode(file_get_contents('php://input'), true);
@@ -58,11 +58,9 @@ foreach($required_fields as $field) {
     }
 }
 
-// Sanitize input and map to existing table columns
+// Sanitize input
 $add_id = intval($input['add_id']);
-$frame_material = mysqli_real_escape_string($conn, $input['frame_material']);
-$seating_capacity = intval($input['seating_capacity']);
-$seat_foam_type = mysqli_real_escape_string($conn, $input['seat_foam_type']);
+$brand = mysqli_real_escape_string($conn, $input['brand']);
 $product_type = mysqli_real_escape_string($conn, $input['product_type']);
 $price_per_month = floatval($input['price_per_month']);
 $security_deposit = floatval($input['security_deposit']);
@@ -70,28 +68,37 @@ $ad_title = mysqli_real_escape_string($conn, $input['ad_title']);
 $description = mysqli_real_escape_string($conn, $input['description']);
 
 // Map to existing table columns
-$title = "$product_type - $seating_capacity Seater ($frame_material)";
+$title = "$brand $product_type - $ad_title";
 $price = $price_per_month;
 $condition = 'good';
 
-$table_name = 'sofa_adds';
+$table_name = 'violin_adds';
 
-// Verify ownership
-$verify_sql = "SELECT id FROM $table_name WHERE id = '$add_id' AND user_id = '$user_id'";
-$verify_result = $conn->query($verify_sql);
-if($verify_result->num_rows == 0) {
+// Check if ad exists
+$check_sql = "SELECT user_id FROM $table_name WHERE id = '$add_id'";
+$check_result = $conn->query($check_sql);
+
+if($check_result->num_rows == 0) {
+    http_response_code(404);
+    echo json_encode(['success' => false, 'message' => 'Ad not found', 'add_id' => $add_id]);
+    exit;
+}
+
+$ad_row = $check_result->fetch_assoc();
+if($ad_row['user_id'] != $user_id) {
     http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Unauthorized access to this ad']);
+    echo json_encode(['success' => false, 'message' => 'You are not authorized to update this ad']);
     exit;
 }
 
 // Update database using existing table columns
-$update_sql = "UPDATE $table_name SET title = '$title', description = '$description', price = '$price', 
-               `condition` = '$condition', updated_at = NOW() WHERE id = '$add_id' AND user_id = '$user_id'";
+$update_sql = "UPDATE $table_name SET title = '$title', description = '$description', 
+               price = '$price', `condition` = '$condition', updated_at = NOW() 
+               WHERE id = '$add_id' AND user_id = '$user_id'";
 
 if($conn->query($update_sql)) {
     $response['success'] = true;
-    $response['message'] = 'Sofa ad updated successfully';
+    $response['message'] = 'Violin ad updated successfully';
     $response['data'] = [
         'add_id' => $add_id,
         'updated_at' => date('Y-m-d H:i:s')
@@ -99,7 +106,7 @@ if($conn->query($update_sql)) {
 } else {
     http_response_code(500);
     $response['success'] = false;
-    $response['message'] = 'Failed to update sofa ad: ' . $conn->error;
+    $response['message'] = 'Failed to update violin ad: ' . $conn->error;
 }
 
 echo json_encode($response);
