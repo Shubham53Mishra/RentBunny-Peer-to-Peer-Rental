@@ -94,8 +94,11 @@ try {
         if($table_exists && $table_exists->num_rows > 0) {
             $delete_ads = "DELETE FROM $table WHERE user_id = $user_id";
             if(!$conn->query($delete_ads)) {
-                error_log("Warning: Failed to delete from $table: " . $conn->error);
+                throw new Exception("Failed to delete from $table: " . $conn->error);
             }
+        } else {
+            // Table doesn't exist - throw error instead of skipping
+            throw new Exception("Required table '$table' does not exist. Please create the table first.");
         }
     }
     
