@@ -123,37 +123,69 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         exit;
     }
     
-    // Check if user already has document record
-    $check_sql = "SELECT id FROM user_documents WHERE user_id = '$user_id'";
-    $check_result = $conn->query($check_sql);
+    // Check if Aadhaar number already exists (registered by any user)
+    $check_aadhaar_sql = "SELECT id, user_id FROM user_documents WHERE aadhaar_no = '$aadhaar_no'";
+    $check_aadhaar_result = $conn->query($check_aadhaar_sql);
     
-    if($check_result && $check_result->num_rows > 0) {
-        // Update existing record
-        $update_sql = "UPDATE user_documents 
-                       SET aadhaar_no = '$aadhaar_no', 
-                           aadhaar_file_path = '$relative_path', 
-                           aadhaar_verified = 1,
-                           aadhaar_uploaded_at = NOW()
-                       WHERE user_id = '$user_id'";
+    if($check_aadhaar_result && $check_aadhaar_result->num_rows > 0) {
+        $existing_record = $check_aadhaar_result->fetch_assoc();
         
-        if(!$conn->query($update_sql)) {
-            http_response_code(500);
+        // If Aadhaar exists but belongs to current user, update it
+        if($existing_record['user_id'] == $user_id) {
+            $update_sql = "UPDATE user_documents 
+                           SET aadhaar_file_path = '$relative_path', 
+                               aadhaar_verified = 1,
+                               aadhaar_uploaded_at = NOW()
+                           WHERE user_id = '$user_id' AND aadhaar_no = '$aadhaar_no'";
+            
+            if(!$conn->query($update_sql)) {
+                http_response_code(500);
+                $response['success'] = false;
+                $response['message'] = 'Database error: ' . $conn->error;
+                echo json_encode($response);
+                exit;
+            }
+        } else {
+            // Aadhaar already registered by another user
+            http_response_code(400);
             $response['success'] = false;
-            $response['message'] = 'Database error: ' . $conn->error;
+            $response['message'] = 'This Aadhaar number is already registered';
             echo json_encode($response);
             exit;
         }
     } else {
-        // Create new record
-        $insert_sql = "INSERT INTO user_documents (user_id, aadhaar_no, aadhaar_file_path, aadhaar_verified, aadhaar_uploaded_at) 
-                       VALUES ('$user_id', '$aadhaar_no', '$relative_path', 1, NOW())";
+        // Check if user already has a document record
+        $check_user_sql = "SELECT id FROM user_documents WHERE user_id = '$user_id'";
+        $check_user_result = $conn->query($check_user_sql);
         
-        if(!$conn->query($insert_sql)) {
-            http_response_code(500);
-            $response['success'] = false;
-            $response['message'] = 'Database error: ' . $conn->error;
-            echo json_encode($response);
-            exit;
+        if($check_user_result && $check_user_result->num_rows > 0) {
+            // Update existing record with new Aadhaar
+            $update_sql = "UPDATE user_documents 
+                           SET aadhaar_no = '$aadhaar_no', 
+                               aadhaar_file_path = '$relative_path', 
+                               aadhaar_verified = 1,
+                               aadhaar_uploaded_at = NOW()
+                           WHERE user_id = '$user_id'";
+            
+            if(!$conn->query($update_sql)) {
+                http_response_code(500);
+                $response['success'] = false;
+                $response['message'] = 'Database error: ' . $conn->error;
+                echo json_encode($response);
+                exit;
+            }
+        } else {
+            // Create new record
+            $insert_sql = "INSERT INTO user_documents (user_id, aadhaar_no, aadhaar_file_path, aadhaar_verified, aadhaar_uploaded_at) 
+                           VALUES ('$user_id', '$aadhaar_no', '$relative_path', 1, NOW())";
+            
+            if(!$conn->query($insert_sql)) {
+                http_response_code(500);
+                $response['success'] = false;
+                $response['message'] = 'Database error: ' . $conn->error;
+                echo json_encode($response);
+                exit;
+            }
         }
     }
     

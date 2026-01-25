@@ -112,37 +112,69 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         exit;
     }
     
-    // Check if user already has DL document record
-    $check_sql = "SELECT id FROM user_documents WHERE user_id = '$user_id'";
-    $check_result = $conn->query($check_sql);
+    // Check if DL number already exists (registered by any user)
+    $check_dl_sql = "SELECT id, user_id FROM user_documents WHERE dl_no = '$dl_no'";
+    $check_dl_result = $conn->query($check_dl_sql);
     
-    if($check_result && $check_result->num_rows > 0) {
-        // Update existing record
-        $update_sql = "UPDATE user_documents 
-                       SET dl_no = '$dl_no', 
-                           dl_file_path = '$relative_path', 
-                           dl_verified = 1,
-                           dl_uploaded_at = NOW()
-                       WHERE user_id = '$user_id'";
+    if($check_dl_result && $check_dl_result->num_rows > 0) {
+        $existing_record = $check_dl_result->fetch_assoc();
         
-        if(!$conn->query($update_sql)) {
-            http_response_code(500);
+        // If DL exists but belongs to current user, update it
+        if($existing_record['user_id'] == $user_id) {
+            $update_sql = "UPDATE user_documents 
+                           SET dl_file_path = '$relative_path', 
+                               dl_verified = 1,
+                               dl_uploaded_at = NOW()
+                           WHERE user_id = '$user_id' AND dl_no = '$dl_no'";
+            
+            if(!$conn->query($update_sql)) {
+                http_response_code(500);
+                $response['success'] = false;
+                $response['message'] = 'Database error: ' . $conn->error;
+                echo json_encode($response);
+                exit;
+            }
+        } else {
+            // DL already registered by another user
+            http_response_code(400);
             $response['success'] = false;
-            $response['message'] = 'Database error: ' . $conn->error;
+            $response['message'] = 'This Driving License number is already registered';
             echo json_encode($response);
             exit;
         }
     } else {
-        // Create new record
-        $insert_sql = "INSERT INTO user_documents (user_id, dl_no, dl_file_path, dl_verified, dl_uploaded_at) 
-                       VALUES ('$user_id', '$dl_no', '$relative_path', 1, NOW())";
+        // Check if user already has a document record
+        $check_user_sql = "SELECT id FROM user_documents WHERE user_id = '$user_id'";
+        $check_user_result = $conn->query($check_user_sql);
         
-        if(!$conn->query($insert_sql)) {
-            http_response_code(500);
-            $response['success'] = false;
-            $response['message'] = 'Database error: ' . $conn->error;
-            echo json_encode($response);
-            exit;
+        if($check_user_result && $check_user_result->num_rows > 0) {
+            // Update existing record with new DL
+            $update_sql = "UPDATE user_documents 
+                           SET dl_no = '$dl_no', 
+                               dl_file_path = '$relative_path', 
+                               dl_verified = 1,
+                               dl_uploaded_at = NOW()
+                           WHERE user_id = '$user_id'";
+            
+            if(!$conn->query($update_sql)) {
+                http_response_code(500);
+                $response['success'] = false;
+                $response['message'] = 'Database error: ' . $conn->error;
+                echo json_encode($response);
+                exit;
+            }
+        } else {
+            // Create new record
+            $insert_sql = "INSERT INTO user_documents (user_id, dl_no, dl_file_path, dl_verified, dl_uploaded_at) 
+                           VALUES ('$user_id', '$dl_no', '$relative_path', 1, NOW())";
+            
+            if(!$conn->query($insert_sql)) {
+                http_response_code(500);
+                $response['success'] = false;
+                $response['message'] = 'Database error: ' . $conn->error;
+                echo json_encode($response);
+                exit;
+            }
         }
     }
     
