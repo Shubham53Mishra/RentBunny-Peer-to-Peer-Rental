@@ -95,6 +95,19 @@ $latitude = floatval($input['latitude']);
 $longitude = floatval($input['longitude']);
 $city = mysqli_real_escape_string($conn, $input['city']);
 
+
+// Handle multiple image URLs as JSON array
+$image_urls = '';
+if(isset($input['image_urls']) && is_array($input['image_urls'])) {
+    $validated_urls = array();
+    foreach($input['image_urls'] as $url) {
+        if(filter_var($url, FILTER_VALIDATE_URL)) {
+            $validated_urls[] = mysqli_real_escape_string($conn, $url);
+        }
+    }
+    $image_urls = !empty($validated_urls) ? json_encode($validated_urls) : '';
+}
+
 // Map to existing table columns
 $title = "$brand $product_type - $ad_title";
 $price = $price_per_month;
@@ -103,8 +116,8 @@ $condition = 'good';
 $table_name = 'drum_adds';
 
 // Insert into database using existing table columns
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, created_at, updated_at)
-               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', NOW(), NOW())";
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, image_url, created_at, updated_at)
+               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', '$image_urls', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;
