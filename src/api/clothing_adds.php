@@ -33,33 +33,23 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
         exit;
     }
     
-    $clothing_tables = array('bridal_lehenga_adds', 'designer_lehenga_adds', 'gown_adds', 'sherwani_adds', 'suit_adds');
-    $data = array();
+    // Query directly from clothing_adds table
+    $sql = "SELECT * FROM clothing_adds ORDER BY created_at DESC";
+    $result = $conn->query($sql);
     
-    foreach($clothing_tables as $table) {
-        $table_name = mysqli_real_escape_string($conn, $table);
-        $check_table_sql = "SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '$table_name' LIMIT 1";
-        $table_exists = $conn->query($check_table_sql);
-        
-        if($table_exists && $table_exists->num_rows > 0) {
-            $sql = "SELECT * FROM " . $table_name . " ORDER BY created_at DESC";
-            $result = $conn->query($sql);
-            if($result && $result->num_rows > 0) {
-                $products = array();
-                while($row = $result->fetch_assoc()) {
-                    $products[] = $row;
-                }
-                $data[$table] = $products;
-            } else {
-                $data[$table] = array();
-            }
-        } else {
-            $data[$table] = array();
+    if($result) {
+        $data = array();
+        while($row = $result->fetch_assoc()) {
+            $data[] = $row;
         }
+        $response['success'] = true;
+        $response['data'] = $data;
+        $response['count'] = count($data);
+    } else {
+        http_response_code(500);
+        $response['success'] = false;
+        $response['message'] = 'Database query failed: ' . $conn->error;
     }
-    
-    $response['success'] = true;
-    $response['data'] = $data;
 } else {
     $response['success'] = false;
     $response['message'] = 'Only GET/POST method allowed';
