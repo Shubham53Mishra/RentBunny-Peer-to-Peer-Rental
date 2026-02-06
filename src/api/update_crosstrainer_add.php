@@ -70,7 +70,7 @@ if($product_type && $brand) {
 $price = $price_per_month;
 $condition = 'good';
 
-$table_name = 'crosstrainer_adds';
+$table_name = 'cross_trainer_adds';
 
 // Verify ownership
 $verify_sql = "SELECT id FROM $table_name WHERE id = '$add_id' AND user_id = '$user_id'";

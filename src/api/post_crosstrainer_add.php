@@ -137,7 +137,7 @@ $title = "$product_type - $brand";
 $price = $price_per_month;
 $condition = 'good';
 
-$table_name = 'crosstrainer_adds';
+$table_name = 'cross_trainer_adds';
 
 // Insert into database using existing table columns
 $insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, image_url, created_at, updated_at)
