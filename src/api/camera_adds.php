@@ -33,7 +33,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
         exit;
     }
     
-    $camera_tables = array('dslr_adds');
+    $camera_tables = array('camera_adds');
     $data = array();
     
     foreach($camera_tables as $table) {
