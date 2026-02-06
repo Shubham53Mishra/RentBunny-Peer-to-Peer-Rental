@@ -1,8 +1,17 @@
 <?php
 header('Content-Type: application/json');
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 require_once('../common/db.php');
 
 $response = array();
+
+// Debug: Check database connection
+if(!$conn) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Database connection failed', 'error' => mysqli_connect_error()]);
+    exit;
+}
 
 // Get token from header
 $token = '';
@@ -29,6 +38,11 @@ if(empty($token)) {
 $token = mysqli_real_escape_string($conn, $token);
 $sql = "SELECT id FROM users WHERE token = '$token' AND token IS NOT NULL";
 $result = $conn->query($sql);
+if(!$result) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Database query failed', 'error' => $conn->error]);
+    exit;
+}
 if($result->num_rows == 0) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Invalid token']);
@@ -44,65 +58,135 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') {
     exit;
 }
 
-// Get JSON data
+// Required field: add_id
 $input = json_decode(file_get_contents('php://input'), true);
 
-// Required fields - only add_id
+// Check if JSON parsing failed
+if($input === null && file_get_contents('php://input') !== '') {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid JSON format', 'error' => json_last_error_msg()]);
+    exit;
+}
+
+if(!is_array($input)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'No JSON data received', 'received_data' => gettype($input)]);
+    exit;
+}
+
+// Check if add_id is provided
 if(!isset($input['add_id'])) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => "Missing required field: add_id"]);
+    echo json_encode(['success' => false, 'message' => 'Missing required field: add_id', 'received_fields' => array_keys($input)]);
     exit;
 }
 
-// Sanitize input - optional fields
 $add_id = intval($input['add_id']);
-$brand = isset($input['brand']) ? mysqli_real_escape_string($conn, $input['brand']) : null;
-$product_type = isset($input['product_type']) ? mysqli_real_escape_string($conn, $input['product_type']) : null;
-$price_per_month = isset($input['price_per_month']) ? floatval($input['price_per_month']) : null;
-$description = isset($input['description']) ? mysqli_real_escape_string($conn, $input['description']) : null;
-
-// Map to existing table columns
-$title = null;
-if($product_type && $brand) {
-    $title = "$product_type - $brand";
-}
-$price = $price_per_month;
-$condition = 'good';
-
 $table_name = 'treadmill_adds';
 
-// Verify ownership
-$verify_sql = "SELECT id FROM $table_name WHERE id = '$add_id' AND user_id = '$user_id'";
-$verify_result = $conn->query($verify_sql);
-if($verify_result->num_rows == 0) {
-    http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Unauthorized access to this ad']);
+// Check if ad exists and belongs to current user
+$check_sql = "SELECT id, user_id FROM $table_name WHERE id = '$add_id'";
+$check_result = $conn->query($check_sql);
+
+if(!$check_result || $check_result->num_rows == 0) {
+    http_response_code(404);
+    echo json_encode(['success' => false, 'message' => 'Ad not found']);
     exit;
 }
 
-// Update database - dynamic query
-$update_fields = [];
-if($title) $update_fields[] = "title = '$title'";
-if($description) $update_fields[] = "description = '$description'";
-if($price) $update_fields[] = "price = '$price'";
+$ad_row = $check_result->fetch_assoc();
+if($ad_row['user_id'] != $user_id) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Unauthorized: You can only update your own ads']);
+    exit;
+}
 
-$update_fields[] = "updated_at = NOW()";
-$update_sql = "UPDATE $table_name SET " . implode(', ', $update_fields) . " WHERE id = '$add_id' AND user_id = '$user_id'";
+// Build update query with only provided fields
+$update_fields = [];
+$updates = [];
+
+// List of allowed fields to update
+$allowed_fields = ['title', 'description', 'price', 'condition', 'city', 'latitude', 'longitude', 'image_url', 'brand', 'product_type'];
+
+foreach($allowed_fields as $field) {
+    if(isset($input[$field])) {
+        $value = $input[$field];
+        
+        // Special handling for image_urls array
+        if($field === 'image_url' && is_array($value)) {
+            $validated_urls = array();
+            foreach($value as $url) {
+                if(filter_var($url, FILTER_VALIDATE_URL)) {
+                    $validated_urls[] = mysqli_real_escape_string($conn, $url);
+                }
+            }
+            $image_urls = !empty($validated_urls) ? json_encode($validated_urls) : '';
+            $updates[] = "\`image_url\` = '$image_urls'";
+            continue;
+        }
+        
+        // Type-specific sanitization
+        if(in_array($field, ['price', 'latitude', 'longitude'])) {
+            $value = floatval($value);
+        } else {
+            $value = mysqli_real_escape_string($conn, $value);
+        }
+        
+        // Validate numeric values
+        if($field === 'price' && $value <= 0) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'price must be greater than 0']);
+            exit;
+        }
+        if($field === 'latitude' && ($value < -90 || $value > 90)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Invalid latitude value']);
+            exit;
+        }
+        if($field === 'longitude' && ($value < -180 || $value > 180)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Invalid longitude value']);
+            exit;
+        }
+        
+        $updates[] = "\`$field\` = '$value'";
+        $update_fields[$field] = $value;
+    }
+}
+
+// Check if at least one field is being updated
+if(empty($updates)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'No fields to update. Provide at least one field to update.']);
+    exit;
+}
+
+// Add updated_at timestamp
+$updates[] = "\`updated_at\` = NOW()";
+
+// Build and execute update query
+$update_sql = "UPDATE $table_name SET " . implode(', ', $updates) . " WHERE id = '$add_id'";
 
 if($conn->query($update_sql)) {
-    http_response_code(200);
     $response['success'] = true;
-    $response['message'] = 'Treadmill ad updated successfully';
+    $response['message'] = 'Treadmill_adds updated successfully';
     $response['data'] = [
         'add_id' => $add_id,
-        'updated_at' => date('Y-m-d H:i:s')
+        'table' => $table_name,
+        'updated_at' => date('Y-m-d H:i:s'),
+        'updated_fields' => array_keys($update_fields)
     ];
+    http_response_code(200);
 } else {
     http_response_code(500);
     $response['success'] = false;
-    $response['message'] = 'Failed to update treadmill ad: ' . $conn->error;
+    $response['message'] = 'Failed to update ' . $table_name;
+    $response['error'] = $conn->error;
+    $response['error_code'] = $conn->errno;
+    $response['debug_sql'] = $update_sql;
+    $response['debug_input'] = $input;
 }
 
-echo json_encode($response);
+echo json_encode($response, JSON_PRETTY_PRINT);
 $conn->close();
 ?>
