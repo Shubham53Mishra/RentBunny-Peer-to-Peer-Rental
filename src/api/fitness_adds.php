@@ -4,7 +4,7 @@ require_once('../common/db.php');
 
 $response = array();
 
-if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') {
+if($_SERVER['REQUEST_METHOD'] == 'GET') {
     $token = isset($_GET['token']) ? $_GET['token'] : '';
     if(empty($token) && function_exists('getallheaders')) {
         $headers = getallheaders();
@@ -61,8 +61,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
     $response['success'] = true;
     $response['data'] = $data;
 } else {
+    http_response_code(405);
     $response['success'] = false;
-    $response['message'] = 'Only GET/POST method allowed';
+    $response['message'] = 'Method not allowed. Use GET request.';
 }
 
 echo json_encode($response);
