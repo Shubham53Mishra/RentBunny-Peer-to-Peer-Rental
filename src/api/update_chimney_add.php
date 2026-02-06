@@ -121,7 +121,7 @@ foreach($allowed_fields as $field) {
                 }
             }
             $image_urls = !empty($validated_urls) ? json_encode($validated_urls) : '';
-            $updates[] = "\`image_url\` = '$image_urls'";
+            $updates[] = "`image_url` = '$image_urls'";
             continue;
         }
         
@@ -149,7 +149,7 @@ foreach($allowed_fields as $field) {
             exit;
         }
         
-        $updates[] = "\`$field\` = '$value'";
+        $updates[] = "`$field` = '$value'";
         $update_fields[$field] = $value;
     }
 }
@@ -162,7 +162,7 @@ if(empty($updates)) {
 }
 
 // Add updated_at timestamp
-$updates[] = "\`updated_at\` = NOW()";
+$updates[] = "`updated_at` = NOW()";
 
 // Build and execute update query
 $update_sql = "UPDATE $table_name SET " . implode(', ', $updates) . " WHERE id = '$add_id'";
