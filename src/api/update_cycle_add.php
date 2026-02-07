@@ -85,19 +85,19 @@ $add_id = intval($input['add_id']);
 $table_name = 'cycle_adds';
 
 // Check if ad exists and belongs to current user
-$check_sql = "SELECT id, user_id FROM $table_name WHERE id = '$add_id'";
+$check_sql = "SELECT id, user_id, title, description, price, city, latitude, longitude, image_url, brand, model, product_type, security_deposit FROM $table_name WHERE id = '$add_id'";
 $check_result = $conn->query($check_sql);
 
 if(!$check_result || $check_result->num_rows == 0) {
     http_response_code(404);
-    echo json_encode(['success' => false, 'message' => 'Ad not found']);
+    echo json_encode(['success' => false, 'message' => "Ad not found with id: $add_id", 'received_add_id' => $add_id, 'query' => $check_sql]);
     exit;
 }
 
 $ad_row = $check_result->fetch_assoc();
 if($ad_row['user_id'] != $user_id) {
     http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Unauthorized: You can only update your own ads']);
+    echo json_encode(['success' => false, 'message' => 'Unauthorized: You can only update your own ads', 'ad_user_id' => $ad_row['user_id'], 'your_user_id' => $user_id]);
     exit;
 }
 
@@ -105,17 +105,22 @@ if($ad_row['user_id'] != $user_id) {
 $update_fields = [];
 $updates = [];
 
-// List of allowed fields to update
-$allowed_fields = ['title', 'description', 'price_per_month', 'city', 'latitude', 'longitude', 'image_url', 'brand', 'model', 'product_type', 'security_deposit'];
+// List of allowed fields to update - same as POST input fields
+$allowed_fields = ['brand', 'model', 'product_type', 'price_per_month', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'image_url', 'security_deposit'];
 
 foreach($allowed_fields as $field) {
     if(isset($input[$field])) {
         $value = $input[$field];
         
-        // Map price_per_month to price column in database
-        $db_field = ($field === 'price_per_month') ? 'price' : $field;
+        // Map field names to database columns
+        $db_field = $field;
+        if($field === 'price_per_month') {
+            $db_field = 'price';
+        } elseif($field === 'ad_title') {
+            $db_field = 'title';
+        }
         
-        // Special handling for image_urls array
+        // Special handling for image_url array
         if($field === 'image_url' && is_array($value)) {
             $validated_urls = array();
             foreach($value as $url) {
@@ -157,6 +162,11 @@ foreach($allowed_fields as $field) {
             echo json_encode(['success' => false, 'message' => 'security_deposit must be greater than or equal to 0']);
             exit;
         }
+        if($field === 'image_url' && empty($value)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'image_url cannot be empty']);
+            exit;
+        }
         
         $updates[] = "`$db_field` = '$value'";
         $update_fields[$field] = $value;
@@ -177,13 +187,19 @@ $updates[] = "`updated_at` = NOW()";
 $update_sql = "UPDATE $table_name SET " . implode(', ', $updates) . " WHERE id = '$add_id'";
 
 if($conn->query($update_sql)) {
+    // Fetch updated record to return in response
+    $fetch_sql = "SELECT id, user_id, title, description, price as price_per_month, city, latitude, longitude, image_url, brand, model, product_type, security_deposit, created_at, updated_at FROM $table_name WHERE id = '$add_id'";
+    $fetch_result = $conn->query($fetch_sql);
+    $updated_record = $fetch_result ? $fetch_result->fetch_assoc() : null;
+    
     $response['success'] = true;
     $response['message'] = 'Cycle ad updated successfully';
     $response['data'] = [
         'id' => $add_id,
         'user_id' => $user_id,
-        'updated_at' => date('Y-m-d H:i:s'),
-        'updated_fields' => $update_fields
+        'updated_fields' => $update_fields,
+        'updated_record' => $updated_record,
+        'updated_at' => date('Y-m-d H:i:s')
     ];
     http_response_code(200);
 } else {
@@ -191,6 +207,7 @@ if($conn->query($update_sql)) {
     $response['success'] = false;
     $response['message'] = 'Failed to update cycle ad';
     $response['error'] = $conn->error;
+    $response['debug_sql'] = $update_sql;
 }
 
 echo json_encode($response);

@@ -145,8 +145,8 @@ if(empty($image_url)) {
 $table_name = 'cycle_adds';
 
 // Insert into database with all fields
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, city, latitude, longitude, image_url, brand, product_type, security_deposit, created_at, updated_at)
-               VALUES ('$user_id', '$title', '$description', '$price_per_month', '$city', '$latitude', '$longitude', '$image_url', '$brand', '$product_type', '$security_deposit', NOW(), NOW())";
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, city, latitude, longitude, image_url, brand, model, product_type, security_deposit, created_at, updated_at)
+               VALUES ('$user_id', '$title', '$description', '$price_per_month', '$city', '$latitude', '$longitude', '$image_url', '$brand', '$model', '$product_type', '$security_deposit', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;
