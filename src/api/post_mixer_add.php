@@ -83,25 +83,53 @@ foreach($required_fields as $field) {
         echo json_encode(['success' => false, 'message' => "Missing required field: $field", 'received_fields' => array_keys($input)]);
         exit;
     }
+    // Check for empty values (NULL, empty string, or whitespace only)
+    if(is_string($input[$field])) {
+        if(trim($input[$field]) === '') {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => "Field cannot be empty: $field"]);
+            exit;
+        }
+    } elseif($input[$field] === null || $input[$field] === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => "Field cannot be NULL or empty: $field"]);
+        exit;
+    }
 }
 
 // Sanitize input
-$power = mysqli_real_escape_string($conn, $input['power']);
-$model = mysqli_real_escape_string($conn, $input['model']);
-$brand = mysqli_real_escape_string($conn, $input['brand']);
-$product_type = mysqli_real_escape_string($conn, $input['product_type']);
+$power = mysqli_real_escape_string($conn, (string)$input['power']);
+$model = mysqli_real_escape_string($conn, (string)$input['model']);
+$brand = mysqli_real_escape_string($conn, (string)$input['brand']);
+$product_type = mysqli_real_escape_string($conn, (string)$input['product_type']);
 $price_per_month = floatval($input['price_per_month']);
 $security_deposit = floatval($input['security_deposit']);
-$ad_title = mysqli_real_escape_string($conn, $input['ad_title']);
-$description = mysqli_real_escape_string($conn, $input['description']);
+$ad_title = mysqli_real_escape_string($conn, (string)$input['ad_title']);
+$description = mysqli_real_escape_string($conn, (string)$input['description']);
 $latitude = floatval($input['latitude']);
 $longitude = floatval($input['longitude']);
-$city = mysqli_real_escape_string($conn, $input['city']);
+$city = mysqli_real_escape_string($conn, (string)$input['city']);
+
+// Validate string fields are not empty after sanitization
+$string_fields = ['power', 'model', 'brand', 'product_type', 'ad_title', 'description', 'city'];
+foreach($string_fields as $field) {
+    $field_var = $$field;
+    if(empty($field_var) || strlen(trim($field_var)) === 0) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => "Validation failed: $field cannot be empty after sanitization"]);
+        exit;
+    }
+}
 
 // Validate numeric values
 if($price_per_month <= 0) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'price_per_month must be greater than 0']);
+    exit;
+}
+if($security_deposit < 0) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'security_deposit cannot be negative']);
     exit;
 }
 if($latitude < -90 || $latitude > 90) {
@@ -161,8 +189,14 @@ if($conn->query($insert_sql)) {
         'model' => $model,
         'brand' => $brand,
         'product_type' => $product_type,
+        'ad_title' => $ad_title,
+        'description' => $description,
         'price_per_month' => $price_per_month,
-        'security_deposit' => $security_deposit
+        'security_deposit' => $security_deposit,
+        'city' => $city,
+        'latitude' => $latitude,
+        'longitude' => $longitude,
+        'image_urls' => json_decode($image_urls)
     ];
     http_response_code(200);
 } else {
