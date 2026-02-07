@@ -1,0 +1,34 @@
+-- Add brand column to all product tables
+
+ALTER TABLE ac_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE bike_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE car_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE cycle_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE bed_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE sofa_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE dining_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE sidedesk_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE computer_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE printer_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE refrigerator_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE tv_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE washing_machine_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE purifier_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE chimney_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE hob_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE mixer_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE treadmill_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE massager_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE excercise_bike_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE cross_trainer_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE clothing_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE dslr_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE harmonium_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE guitar_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE drum_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE keyboard_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE violin_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE cajon_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE tabla_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE crutches_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE wheelchair_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;

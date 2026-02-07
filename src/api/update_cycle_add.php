@@ -106,11 +106,14 @@ $update_fields = [];
 $updates = [];
 
 // List of allowed fields to update
-$allowed_fields = ['title', 'description', 'price', 'condition', 'city', 'latitude', 'longitude', 'image_url', 'brand', 'product_type'];
+$allowed_fields = ['title', 'description', 'price_per_month', 'city', 'latitude', 'longitude', 'image_url', 'brand', 'model', 'product_type', 'security_deposit'];
 
 foreach($allowed_fields as $field) {
     if(isset($input[$field])) {
         $value = $input[$field];
+        
+        // Map price_per_month to price column in database
+        $db_field = ($field === 'price_per_month') ? 'price' : $field;
         
         // Special handling for image_urls array
         if($field === 'image_url' && is_array($value)) {
@@ -122,20 +125,21 @@ foreach($allowed_fields as $field) {
             }
             $image_urls = !empty($validated_urls) ? json_encode($validated_urls) : '';
             $updates[] = "`image_url` = '$image_urls'";
+            $update_fields[$field] = $image_urls;
             continue;
         }
         
         // Type-specific sanitization
-        if(in_array($field, ['price', 'latitude', 'longitude'])) {
+        if(in_array($field, ['price_per_month', 'latitude', 'longitude', 'security_deposit'])) {
             $value = floatval($value);
         } else {
             $value = mysqli_real_escape_string($conn, $value);
         }
         
         // Validate numeric values
-        if($field === 'price' && $value <= 0) {
+        if($field === 'price_per_month' && $value <= 0) {
             http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'price must be greater than 0']);
+            echo json_encode(['success' => false, 'message' => 'price_per_month must be greater than 0']);
             exit;
         }
         if($field === 'latitude' && ($value < -90 || $value > 90)) {
@@ -148,8 +152,13 @@ foreach($allowed_fields as $field) {
             echo json_encode(['success' => false, 'message' => 'Invalid longitude value']);
             exit;
         }
+        if($field === 'security_deposit' && $value < 0) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'security_deposit must be greater than or equal to 0']);
+            exit;
+        }
         
-        $updates[] = "`$field` = '$value'";
+        $updates[] = "`$db_field` = '$value'";
         $update_fields[$field] = $value;
     }
 }
@@ -169,24 +178,21 @@ $update_sql = "UPDATE $table_name SET " . implode(', ', $updates) . " WHERE id =
 
 if($conn->query($update_sql)) {
     $response['success'] = true;
-    $response['message'] = 'Cycle_adds updated successfully';
+    $response['message'] = 'Cycle ad updated successfully';
     $response['data'] = [
-        'add_id' => $add_id,
-        'table' => $table_name,
+        'id' => $add_id,
+        'user_id' => $user_id,
         'updated_at' => date('Y-m-d H:i:s'),
-        'updated_fields' => array_keys($update_fields)
+        'updated_fields' => $update_fields
     ];
     http_response_code(200);
 } else {
     http_response_code(500);
     $response['success'] = false;
-    $response['message'] = 'Failed to update ' . $table_name;
+    $response['message'] = 'Failed to update cycle ad';
     $response['error'] = $conn->error;
-    $response['error_code'] = $conn->errno;
-    $response['debug_sql'] = $update_sql;
-    $response['debug_input'] = $input;
 }
 
-echo json_encode($response, JSON_PRETTY_PRINT);
+echo json_encode($response);
 $conn->close();
 ?>

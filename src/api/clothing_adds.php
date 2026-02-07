@@ -40,11 +40,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
     if($result) {
         $data = array();
         while($row = $result->fetch_assoc()) {
+            $row['product_type'] = 'clothing';
             $data[] = $row;
         }
         $response['success'] = true;
-        $response['data'] = $data;
         $response['count'] = count($data);
+        $response['data'] = $data;
     } else {
         http_response_code(500);
         $response['success'] = false;

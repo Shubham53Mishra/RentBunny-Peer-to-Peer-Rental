@@ -34,32 +34,31 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
     }
     
     $cycle_tables = array('road_bike_adds', 'cruiser_adds', 'fixed_gear_adds', 'mountain_bike_adds', 'bmx_adds', 'touring_bike_adds', 'folding_bike_adds', 'electric_bike_adds', 'cyclocross_bike_adds', 'hybrid_bike_adds');
-    $data = array();
     
-    foreach($cycle_tables as $table) {
-        $table_name = mysqli_real_escape_string($conn, $table);
-        $check_table_sql = "SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '$table_name' LIMIT 1";
-        $table_exists = $conn->query($check_table_sql);
-        
-        if($table_exists && $table_exists->num_rows > 0) {
-            $sql = "SELECT * FROM " . $table_name . " ORDER BY created_at DESC";
-            $result = $conn->query($sql);
-            if($result && $result->num_rows > 0) {
-                $products = array();
-                while($row = $result->fetch_assoc()) {
-                    $products[] = $row;
-                }
-                $data[$table] = $products;
-            } else {
-                $data[$table] = array();
+    // Query from the main cycle_adds table where POST API saves data
+    $sql = "SELECT * FROM cycle_adds ORDER BY created_at DESC";
+    $result = $conn->query($sql);
+    
+    $all_products = array();
+    if($result && $result->num_rows > 0) {
+        while($row = $result->fetch_assoc()) {
+            // Rename 'price' to 'price_per_month' for consistency with POST response
+            if(isset($row['price'])) {
+                $row['price_per_month'] = $row['price'];
+                unset($row['price']);
             }
-        } else {
-            $data[$table] = array();
+            $all_products[] = $row;
         }
     }
     
+    // Sort all products by created_at in descending order
+    usort($all_products, function($a, $b) {
+        return strtotime($b['created_at']) - strtotime($a['created_at']);
+    });
+    
     $response['success'] = true;
-    $response['data'] = $data;
+    $response['count'] = count($all_products);
+    $response['data'] = $all_products;
 } else {
     $response['success'] = false;
     $response['message'] = 'Only GET/POST method allowed';

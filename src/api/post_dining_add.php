@@ -59,7 +59,7 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') {
 }
 
 // Required fields for dining table ad
-$required_fields = ['height', 'length', 'width', 'primary_material', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
+$required_fields = ['brand', 'height', 'length', 'width', 'primary_material', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
 
 // Get JSON data
 $input = json_decode(file_get_contents('php://input'), true);
@@ -86,6 +86,7 @@ foreach($required_fields as $field) {
 }
 
 // Sanitize input and map to existing table columns
+$brand = mysqli_real_escape_string($conn, $input['brand']);
 $height = floatval($input['height']);
 $length = floatval($input['length']);
 $width = floatval($input['width']);
@@ -142,8 +143,8 @@ $condition = 'good';
 $table_name = 'dining_adds';
 
 // Insert into database using existing table columns
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, image_url, created_at, updated_at)
-               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', '$image_urls', NOW(), NOW())";
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, image_url, brand, created_at, updated_at)
+               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', '$image_urls', '$brand', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;

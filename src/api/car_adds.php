@@ -33,33 +33,25 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
         exit;
     }
     
-    $car_tables = array('petrol_car_adds', 'electric_car_adds', 'diesel_car_adds');
-    $data = array();
+    // Get all cars from single car_adds table
+    $sql = "SELECT * FROM car_adds ORDER BY created_at DESC";
+    $result = $conn->query($sql);
     
-    foreach($car_tables as $table) {
-        $table_name = mysqli_real_escape_string($conn, $table);
-        $check_table_sql = "SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '$table_name' LIMIT 1";
-        $table_exists = $conn->query($check_table_sql);
-        
-        if($table_exists && $table_exists->num_rows > 0) {
-            $sql = "SELECT * FROM " . $table_name . " ORDER BY created_at DESC";
-            $result = $conn->query($sql);
-            if($result && $result->num_rows > 0) {
-                $products = array();
-                while($row = $result->fetch_assoc()) {
-                    $products[] = $row;
-                }
-                $data[$table] = $products;
-            } else {
-                $data[$table] = array();
+    if($result) {
+        $cars = array();
+        if($result->num_rows > 0) {
+            while($row = $result->fetch_assoc()) {
+                $row['product_type'] = 'car';
+                $cars[] = $row;
             }
-        } else {
-            $data[$table] = array();
         }
+        $response['success'] = true;
+        $response['count'] = count($cars);
+        $response['data'] = $cars;
+    } else {
+        $response['success'] = false;
+        $response['message'] = 'Failed to fetch cars: ' . $conn->error;
     }
-    
-    $response['success'] = true;
-    $response['data'] = $data;
 } else {
     $response['success'] = false;
     $response['message'] = 'Only GET/POST method allowed';

@@ -33,33 +33,25 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
         exit;
     }
     
-    $camera_tables = array('camera_adds');
-    $data = array();
+    // Query from camera_adds table and add product_type
+    $sql = "SELECT * FROM camera_adds ORDER BY created_at DESC";
+    $result = $conn->query($sql);
     
-    foreach($camera_tables as $table) {
-        $table_name = mysqli_real_escape_string($conn, $table);
-        $check_table_sql = "SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '$table_name' LIMIT 1";
-        $table_exists = $conn->query($check_table_sql);
-        
-        if($table_exists && $table_exists->num_rows > 0) {
-            $sql = "SELECT * FROM " . $table_name . " ORDER BY created_at DESC";
-            $result = $conn->query($sql);
-            if($result && $result->num_rows > 0) {
-                $products = array();
-                while($row = $result->fetch_assoc()) {
-                    $products[] = $row;
-                }
-                $data[$table] = $products;
-            } else {
-                $data[$table] = array();
+    if($result) {
+        $all_products = array();
+        if($result->num_rows > 0) {
+            while($row = $result->fetch_assoc()) {
+                $row['product_type'] = 'camera';
+                $all_products[] = $row;
             }
-        } else {
-            $data[$table] = array();
         }
+        $response['success'] = true;
+        $response['count'] = count($all_products);
+        $response['data'] = $all_products;
+    } else {
+        $response['success'] = false;
+        $response['message'] = 'Failed to fetch cameras: ' . $conn->error;
     }
-    
-    $response['success'] = true;
-    $response['data'] = $data;
 } else {
     $response['success'] = false;
     $response['message'] = 'Only GET/POST method allowed';

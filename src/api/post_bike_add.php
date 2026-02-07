@@ -103,15 +103,12 @@ $title = "$brand $variant - $year ($kilometer_driven km)";
 $price = $price_per_month;  // Map price_per_month to price column
 $condition = 'good';  // Default condition
 
-// Determine table name based on fuel type
-$table_name = 'petrol_bike_adds';
-if(strtolower($product_type) == 'electric') {
-    $table_name = 'electric_bike_adds';
-}
+// Use single bike_adds table
+$table_name = 'bike_adds';
 
 // Insert into database using existing table columns
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, image_url, created_at, updated_at)
-               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', '$image_urls', NOW(), NOW())";
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, image_url, brand, product_type, created_at, updated_at)
+               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', '$image_urls', '$brand', '$product_type', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;

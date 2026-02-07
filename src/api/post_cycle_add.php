@@ -59,7 +59,7 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') {
 }
 
 // Required fields for Cycle ad
-$required_fields = ['brand', 'model', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
+$required_fields = ['brand', 'model', 'product_type', 'price_per_month', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'image_url', 'security_deposit'];
 
 // Get JSON data
 $input = json_decode(file_get_contents('php://input'), true);
@@ -90,14 +90,32 @@ $brand = mysqli_real_escape_string($conn, $input['brand']);
 $model = mysqli_real_escape_string($conn, $input['model']);
 $product_type = mysqli_real_escape_string($conn, $input['product_type']);
 $price_per_month = floatval($input['price_per_month']);
-$security_deposit = floatval($input['security_deposit']);
 $ad_title = mysqli_real_escape_string($conn, $input['ad_title']);
+$title = mysqli_real_escape_string($conn, $ad_title);
 $description = mysqli_real_escape_string($conn, $input['description']);
 $latitude = floatval($input['latitude']);
 $longitude = floatval($input['longitude']);
 $city = mysqli_real_escape_string($conn, $input['city']);
 
-// Validate numeric values
+// Optional fields
+$image_url = '';
+if(is_array($input['image_url'])) {
+    $validated_urls = array();
+    foreach($input['image_url'] as $url) {
+        if(filter_var($url, FILTER_VALIDATE_URL)) {
+            $validated_urls[] = mysqli_real_escape_string($conn, $url);
+        }
+    }
+    $image_url = !empty($validated_urls) ? json_encode($validated_urls) : '';
+} else {
+    if(filter_var($input['image_url'], FILTER_VALIDATE_URL) || $input['image_url'] != '') {
+        $image_url = mysqli_real_escape_string($conn, $input['image_url']);
+    }
+}
+
+$security_deposit = floatval($input['security_deposit']);
+
+// Validate location values
 if($price_per_month <= 0) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'price_per_month must be greater than 0']);
@@ -113,45 +131,43 @@ if($longitude < -180 || $longitude > 180) {
     echo json_encode(['success' => false, 'message' => 'Invalid longitude value']);
     exit;
 }
-
-
-// Handle multiple image URLs as JSON array
-$image_urls = '';
-if(isset($input['image_urls']) && is_array($input['image_urls'])) {
-    $validated_urls = array();
-    foreach($input['image_urls'] as $url) {
-        if(filter_var($url, FILTER_VALIDATE_URL)) {
-            $validated_urls[] = mysqli_real_escape_string($conn, $url);
-        }
-    }
-    $image_urls = !empty($validated_urls) ? json_encode($validated_urls) : '';
+if($security_deposit < 0) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'security_deposit must be greater than or equal to 0']);
+    exit;
 }
-
-// Map to existing table columns
-$title = "$product_type - $brand ($model)";
-$price = $price_per_month;
-$condition = 'good';
+if(empty($image_url)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'image_url is required']);
+    exit;
+}
 
 $table_name = 'cycle_adds';
 
-// Insert into database using existing table columns
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, image_url, created_at, updated_at)
-               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', '$image_urls', NOW(), NOW())";
+// Insert into database with all fields
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, city, latitude, longitude, image_url, brand, product_type, security_deposit, created_at, updated_at)
+               VALUES ('$user_id', '$title', '$description', '$price_per_month', '$city', '$latitude', '$longitude', '$image_url', '$brand', '$product_type', '$security_deposit', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;
     $response['success'] = true;
     $response['message'] = 'Cycle ad posted successfully';
     $response['data'] = [
-        'add_id' => $add_id,
-        'table' => $table_name,
-        'created_at' => date('Y-m-d H:i:s'),
+        'id' => $add_id,
         'user_id' => $user_id,
+        'title' => $title,
+        'description' => $description,
+        'price_per_month' => $price_per_month,
+        'city' => $city,
+        'latitude' => $latitude,
+        'longitude' => $longitude,
+        'image_url' => $image_url,
         'brand' => $brand,
         'model' => $model,
         'product_type' => $product_type,
-        'price_per_month' => $price_per_month,
-        'security_deposit' => $security_deposit
+        'security_deposit' => $security_deposit,
+        'created_at' => date('Y-m-d H:i:s'),
+        'updated_at' => date('Y-m-d H:i:s')
     ];
     http_response_code(200);
 } else {

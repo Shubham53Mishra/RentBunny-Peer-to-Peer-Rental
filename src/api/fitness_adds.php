@@ -34,7 +34,7 @@ if($_SERVER['REQUEST_METHOD'] == 'GET') {
     }
     
     $fitness_tables = array('treadmill_adds', 'massager_adds', 'excercise_bike_adds', 'cross_trainer_adds');
-    $data = array();
+    $all_products = array();
     
     foreach($fitness_tables as $table) {
         $table_name = mysqli_real_escape_string($conn, $table);
@@ -45,21 +45,24 @@ if($_SERVER['REQUEST_METHOD'] == 'GET') {
             $sql = "SELECT * FROM " . $table_name . " ORDER BY created_at DESC";
             $result = $conn->query($sql);
             if($result && $result->num_rows > 0) {
-                $products = array();
+                // Extract product type from table name (remove '_adds' suffix)
+                $product_type = str_replace('_adds', '', $table);
                 while($row = $result->fetch_assoc()) {
-                    $products[] = $row;
+                    $row['product_type'] = $product_type;
+                    $all_products[] = $row;
                 }
-                $data[$table] = $products;
-            } else {
-                $data[$table] = array();
             }
-        } else {
-            $data[$table] = array();
         }
     }
     
+    // Sort all products by created_at in descending order
+    usort($all_products, function($a, $b) {
+        return strtotime($b['created_at']) - strtotime($a['created_at']);
+    });
+    
     $response['success'] = true;
-    $response['data'] = $data;
+    $response['count'] = count($all_products);
+    $response['data'] = $all_products;
 } else {
     http_response_code(405);
     $response['success'] = false;
