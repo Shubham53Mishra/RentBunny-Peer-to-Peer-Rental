@@ -106,7 +106,7 @@ $update_fields = [];
 $updates = [];
 
 // List of required fields to update
-$required_fields = ['title', 'description', 'price_per_month', 'security_deposit', 'city', 'latitude', 'longitude', 'image_url', 'brand'];
+$required_fields = ['title', 'description', 'price_per_month', 'security_deposit', 'city', 'latitude', 'longitude', 'image_url', 'brand', 'power', 'model', 'product_type', 'ad_title'];
 
 // Check if all required fields are provided
 foreach($required_fields as $field) {
@@ -214,12 +214,13 @@ $update_sql = "UPDATE $table_name SET " . implode(', ', $updates) . " WHERE id =
 
 if($conn->query($update_sql)) {
     $response['success'] = true;
-    $response['message'] = 'Mixer_adds updated successfully';
+    $response['message'] = 'Mixer ad updated successfully';
     $response['data'] = [
         'add_id' => $add_id,
         'table' => $table_name,
         'updated_at' => date('Y-m-d H:i:s'),
-        'updated_fields' => array_keys($update_fields)
+        'user_id' => $user_id,
+        'updated_fields' => $update_fields
     ];
     http_response_code(200);
 } else {
