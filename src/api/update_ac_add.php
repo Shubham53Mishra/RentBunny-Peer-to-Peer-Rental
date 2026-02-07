@@ -219,7 +219,7 @@ $update_sql = "UPDATE $table_name SET " . implode(', ', $updates) . " WHERE id =
 
 if($conn->query($update_sql)) {
     // Fetch updated record to return in response
-    $fetch_sql = "SELECT id, user_id, title, description, price, city, latitude, longitude, image_url, brand, product_type, security_deposit, created_at, updated_at FROM $table_name WHERE id = '$add_id'";
+    $fetch_sql = "SELECT id, user_id, title, description, price as price_per_month, city, latitude, longitude, image_url, brand, product_type, security_deposit, created_at, updated_at FROM $table_name WHERE id = '$add_id'";
     $fetch_result = $conn->query($fetch_sql);
     $updated_record = $fetch_result ? $fetch_result->fetch_assoc() : null;
     
