@@ -45,20 +45,23 @@ if(!$result) {
 }
 if($result->num_rows == 0) {
     http_response_code(401);
-    echo json_encode(['success' => false, 'message' => 'Invalid token']);
+    echo json_encode(['success' => false, 'message' => 'Invalid token', 'debug_token' => substr($token, 0, 10) . '...']);
     exit;
 }
 
 $user_row = $result->fetch_assoc();
 $user_id = $user_row['id'];
 
-if($_SERVER['REQUEST_METHOD'] != 'POST') {
+if($_SERVER['REQUEST_METHOD'] != 'PUT') {
     http_response_code(405);
-    echo json_encode(['success' => false, 'message' => 'Only POST method allowed']);
+    echo json_encode(['success' => false, 'message' => 'Only PUT method allowed']);
     exit;
 }
 
-// Required field: add_id
+// Required fields for treadmill ad - same as POST API
+$required_fields = ['add_id', 'brand', 'product_type', 'price_per_month', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'image_url', 'security_deposit'];
+
+// Get JSON data
 $input = json_decode(file_get_contents('php://input'), true);
 
 // Check if JSON parsing failed
@@ -74,11 +77,12 @@ if(!is_array($input)) {
     exit;
 }
 
-// Check if add_id is provided
-if(!isset($input['add_id'])) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Missing required field: add_id', 'received_fields' => array_keys($input)]);
-    exit;
+foreach($required_fields as $field) {
+    if(!isset($input[$field])) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => "Missing required field: $field", 'received_fields' => array_keys($input)]);
+        exit;
+    }
 }
 
 $add_id = intval($input['add_id']);
@@ -101,116 +105,92 @@ if($ad_row['user_id'] != $user_id) {
     exit;
 }
 
-// Build update query with only provided fields
-$update_fields = [];
-$updates = [];
+// Sanitize input
+$brand = mysqli_real_escape_string($conn, $input['brand']);
+$product_type = mysqli_real_escape_string($conn, $input['product_type']);
+$price_per_month = floatval($input['price_per_month']);
+$security_deposit = floatval($input['security_deposit']);
+$ad_title = mysqli_real_escape_string($conn, $input['ad_title']);
+$description = mysqli_real_escape_string($conn, $input['description']);
+$latitude = floatval($input['latitude']);
+$longitude = floatval($input['longitude']);
+$city = mysqli_real_escape_string($conn, $input['city']);
 
-// List of required fields to update - same as POST required fields
-$required_fields = ['brand', 'product_type', 'price_per_month', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'image_url', 'security_deposit'];
-
-// Check if all required fields are provided
-$missing_fields = [];
-foreach($required_fields as $field) {
-    if(!isset($input[$field]) || ($field !== 'image_url' && empty($input[$field]))) {
-        $missing_fields[] = $field;
+// Handle image_url array
+$image_urls = '';
+if(isset($input['image_url']) && is_array($input['image_url'])) {
+    $validated_urls = array();
+    foreach($input['image_url'] as $url) {
+        if(filter_var($url, FILTER_VALIDATE_URL)) {
+            $validated_urls[] = mysqli_real_escape_string($conn, $url);
+        }
+    }
+    $image_urls = !empty($validated_urls) ? json_encode($validated_urls) : '';
+} else if(isset($input['image_url']) && is_string($input['image_url'])) {
+    if(filter_var($input['image_url'], FILTER_VALIDATE_URL)) {
+        $image_urls = json_encode([mysqli_real_escape_string($conn, $input['image_url'])]);
     }
 }
 
-if(!empty($missing_fields)) {
+if(empty($image_urls)) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Missing required fields', 'missing_fields' => $missing_fields, 'received_fields' => array_keys($input)]);
+    echo json_encode(['success' => false, 'message' => 'image_url must be a valid URL or array of URLs']);
     exit;
 }
 
-foreach($required_fields as $field) {
-        $value = $input[$field];
-        
-        // Map field names to database columns
-        $db_field = $field;
-        if($field === 'price_per_month') {
-            $db_field = 'price';
-        } elseif($field === 'ad_title') {
-            $db_field = 'title';
-        }
-        
-        // Special handling for image_url array
-        if($field === 'image_url' && is_array($value)) {
-            $validated_urls = array();
-            foreach($value as $url) {
-                if(filter_var($url, FILTER_VALIDATE_URL)) {
-                    $validated_urls[] = mysqli_real_escape_string($conn, $url);
-                }
-            }
-            $image_urls = !empty($validated_urls) ? json_encode($validated_urls) : '';
-            $updates[] = "`image_url` = '$image_urls'";
-            $update_fields[$field] = $image_urls;
-            continue;
-        }
-        
-        // Type-specific sanitization
-        if(in_array($field, ['price_per_month', 'latitude', 'longitude', 'security_deposit'])) {
-            $value = floatval($value);
-        } else {
-            $value = mysqli_real_escape_string($conn, $value);
-        }
-        
-        // Validate numeric values
-        if($field === 'price_per_month' && $value <= 0) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'price_per_month must be greater than 0']);
-            exit;
-        }
-        if($field === 'latitude' && ($value < -90 || $value > 90)) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'Invalid latitude value']);
-            exit;
-        }
-        if($field === 'longitude' && ($value < -180 || $value > 180)) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'Invalid longitude value']);
-            exit;
-        }
-        if($field === 'security_deposit' && $value < 0) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'security_deposit must be greater than or equal to 0']);
-            exit;
-        }
-        if($field === 'image_url' && empty($value)) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'image_url cannot be empty']);
-            exit;
-        }
-        
-        $updates[] = "`$db_field` = '$value'";
-        $update_fields[$field] = $value;
-}
-
-// Check if at least one field is being updated
-if(empty($updates)) {
+// Validate numeric values
+if($price_per_month <= 0) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'No fields to update. Provide at least one field to update.']);
+    echo json_encode(['success' => false, 'message' => 'price_per_month must be greater than 0']);
+    exit;
+}
+if($latitude < -90 || $latitude > 90) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid latitude value']);
+    exit;
+}
+if($longitude < -180 || $longitude > 180) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid longitude value']);
+    exit;
+}
+if($security_deposit < 0) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'security_deposit must be greater than or equal to 0']);
     exit;
 }
 
-// Add updated_at timestamp
-$updates[] = "`updated_at` = NOW()";
-
-// Build and execute update query
-$update_sql = "UPDATE $table_name SET " . implode(', ', $updates) . " WHERE id = '$add_id'";
+// Update in database
+$update_sql = "UPDATE $table_name SET 
+               title = '$ad_title',
+               description = '$description',
+               price = '$price_per_month',
+               city = '$city',
+               latitude = '$latitude',
+               longitude = '$longitude',
+               image_url = '$image_urls',
+               brand = '$brand',
+               product_type = '$product_type',
+               security_deposit = '$security_deposit',
+               updated_at = NOW()
+               WHERE id = '$add_id'";
 
 if($conn->query($update_sql)) {
-    // Fetch updated record to return in response
-    $fetch_sql = "SELECT id, user_id, title, description, price as price_per_month, city, latitude, longitude, image_url, brand, product_type, security_deposit, created_at, updated_at FROM $table_name WHERE id = '$add_id'";
-    $fetch_result = $conn->query($fetch_sql);
-    $updated_record = $fetch_result ? $fetch_result->fetch_assoc() : null;
-    
     $response['success'] = true;
     $response['message'] = 'Treadmill ad updated successfully';
     $response['data'] = [
         'id' => $add_id,
         'user_id' => $user_id,
-        'updated_fields' => $update_fields,
-        'updated_record' => $updated_record,
+        'ad_title' => $ad_title,
+        'description' => $description,
+        'price_per_month' => $price_per_month,
+        'city' => $city,
+        'latitude' => $latitude,
+        'longitude' => $longitude,
+        'image_url' => $image_urls,
+        'brand' => $brand,
+        'product_type' => $product_type,
+        'security_deposit' => $security_deposit,
         'updated_at' => date('Y-m-d H:i:s')
     ];
     http_response_code(200);
@@ -219,7 +199,9 @@ if($conn->query($update_sql)) {
     $response['success'] = false;
     $response['message'] = 'Failed to update treadmill ad';
     $response['error'] = $conn->error;
+    $response['error_code'] = $conn->errno;
     $response['debug_sql'] = $update_sql;
+    $response['debug_input'] = $input;
 }
 
 echo json_encode($response, JSON_PRETTY_PRINT);
