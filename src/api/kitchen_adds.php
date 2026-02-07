@@ -45,11 +45,38 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
             $sql = "SELECT * FROM " . $table_name . " ORDER BY created_at DESC";
             $result = $conn->query($sql);
             if($result && $result->num_rows > 0) {
-                // Extract product type from table name (remove '_adds' suffix)
-                $product_type = str_replace('_adds', '', $table);
                 while($row = $result->fetch_assoc()) {
-                    $row['product_type'] = $product_type;
-                    $all_products[] = $row;
+                    // Transform row to match standardized format
+                    $product = [
+                        'id' => $row['id'],
+                        'user_id' => $row['user_id'],
+                        'price_per_month' => isset($row['price']) ? $row['price'] : 0,
+                        'security_deposit' => isset($row['security_deposit']) ? $row['security_deposit'] : 0,
+                        'ad_title' => isset($row['title']) ? $row['title'] : '',
+                        'description' => isset($row['description']) ? $row['description'] : '',
+                        'city' => isset($row['city']) ? $row['city'] : '',
+                        'latitude' => isset($row['latitude']) ? $row['latitude'] : 0,
+                        'longitude' => isset($row['longitude']) ? $row['longitude'] : 0,
+                        'brand' => isset($row['brand']) ? $row['brand'] : '',
+                        'product_type' => isset($row['product_type']) && !empty($row['product_type']) ? $row['product_type'] : str_replace('_adds', '', $table)
+                    ];
+                    
+                    // Parse image_url JSON to image_urls array
+                    if(isset($row['image_url'])) {
+                        $product['image_urls'] = json_decode($row['image_url'], true) ?: [];
+                    } else {
+                        $product['image_urls'] = [];
+                    }
+                    
+                    // Include timestamps if available
+                    if(isset($row['created_at'])) {
+                        $product['created_at'] = $row['created_at'];
+                    }
+                    if(isset($row['updated_at'])) {
+                        $product['updated_at'] = $row['updated_at'];
+                    }
+                    
+                    $all_products[] = $product;
                 }
             }
         }
