@@ -59,7 +59,7 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') {
 }
 
 // Required fields for Mixer ad
-$required_fields = ['power', 'model', 'brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
+$required_fields = ['power', 'model', 'brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'image_urls'];
 
 // Get JSON data
 $input = json_decode(file_get_contents('php://input'), true);
@@ -117,27 +117,36 @@ if($longitude < -180 || $longitude > 180) {
 
 
 // Handle multiple image URLs as JSON array
+if(!is_array($input['image_urls']) || empty($input['image_urls'])) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'image_urls must be a non-empty array']);
+    exit;
+}
+
 $image_urls = '';
-if(isset($input['image_urls']) && is_array($input['image_urls'])) {
+if(is_array($input['image_urls'])) {
     $validated_urls = array();
     foreach($input['image_urls'] as $url) {
         if(filter_var($url, FILTER_VALIDATE_URL)) {
             $validated_urls[] = mysqli_real_escape_string($conn, $url);
         }
     }
-    $image_urls = !empty($validated_urls) ? json_encode($validated_urls) : '';
+    if(empty($validated_urls)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'image_urls must contain at least one valid URL']);
+        exit;
+    }
+    $image_urls = json_encode($validated_urls);
 }
 
 // Map to existing table columns
 $title = "$product_type - $brand ($model)";
-$price = $price_per_month;
-$condition = 'good';
 
 $table_name = 'mixer_adds';
 
 // Insert into database using existing table columns
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, image_url, brand, created_at, updated_at)
-               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', '$image_urls', '$brand', NOW(), NOW())";
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price_per_month, security_deposit, city, latitude, longitude, image_url, brand, created_at, updated_at)
+               VALUES ('$user_id', '$title', '$description', '$price_per_month', '$security_deposit', '$city', '$latitude', '$longitude', '$image_urls', '$brand', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;

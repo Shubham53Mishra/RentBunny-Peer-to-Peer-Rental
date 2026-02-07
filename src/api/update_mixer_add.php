@@ -106,7 +106,7 @@ $update_fields = [];
 $updates = [];
 
 // List of allowed fields to update
-$allowed_fields = ['title', 'description', 'price', 'condition', 'city', 'latitude', 'longitude', 'image_url', 'brand'];
+$allowed_fields = ['title', 'description', 'price_per_month', 'security_deposit', 'city', 'latitude', 'longitude', 'image_url', 'brand'];
 
 foreach($allowed_fields as $field) {
     if(isset($input[$field])) {
@@ -126,16 +126,21 @@ foreach($allowed_fields as $field) {
         }
         
         // Type-specific sanitization
-        if(in_array($field, ['price', 'latitude', 'longitude'])) {
+        if(in_array($field, ['price_per_month', 'security_deposit', 'latitude', 'longitude'])) {
             $value = floatval($value);
         } else {
             $value = mysqli_real_escape_string($conn, $value);
         }
         
         // Validate numeric values
-        if($field === 'price' && $value <= 0) {
+        if($field === 'price_per_month' && $value <= 0) {
             http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'price must be greater than 0']);
+            echo json_encode(['success' => false, 'message' => 'price_per_month must be greater than 0']);
+            exit;
+        }
+        if($field === 'security_deposit' && $value < 0) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'security_deposit cannot be negative']);
             exit;
         }
         if($field === 'latitude' && ($value < -90 || $value > 90)) {
