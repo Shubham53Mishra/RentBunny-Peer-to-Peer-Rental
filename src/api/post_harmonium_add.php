@@ -59,7 +59,7 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') {
 }
 
 // Required fields for Harmonium ad
-$required_fields = ['brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'city'];
+$required_fields = ['brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'city', 'latitude', 'longitude', 'image_urls'];
 
 // Get JSON data
 $input = json_decode(file_get_contents('php://input'), true);
@@ -91,33 +91,84 @@ $price_per_month = floatval($input['price_per_month']);
 $security_deposit = floatval($input['security_deposit']);
 $ad_title = mysqli_real_escape_string($conn, $input['ad_title']);
 $description = mysqli_real_escape_string($conn, $input['description']);
-$latitude = isset($input['latitude']) ? floatval($input['latitude']) : 0;
-$longitude = isset($input['longitude']) ? floatval($input['longitude']) : 0;
+$latitude = floatval($input['latitude']);
+$longitude = floatval($input['longitude']);
 $city = mysqli_real_escape_string($conn, $input['city']);
+
+// Validate all string fields are not empty
+$string_fields = ['brand', 'product_type', 'ad_title', 'description', 'city'];
+foreach($string_fields as $field) {
+    if(empty($$field) || strlen(trim($$field)) === 0) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => "Field cannot be empty: $field"]);
+        exit;
+    }
+}
+
+// Validate numeric values
+if(!isset($input['price_per_month']) || $input['price_per_month'] === '' || $input['price_per_month'] === null) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'price_per_month is required']);
+    exit;
+}
+if($price_per_month <= 0) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'price_per_month must be greater than 0']);
+    exit;
+}
+if(!isset($input['security_deposit']) || $input['security_deposit'] === '' || $input['security_deposit'] === null) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'security_deposit is required']);
+    exit;
+}
+if($security_deposit < 0) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'security_deposit cannot be negative']);
+    exit;
+}
+if($latitude < -90 || $latitude > 90) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid latitude value']);
+    exit;
+}
+if($longitude < -180 || $longitude > 180) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid longitude value']);
+    exit;
+}
 
 
 // Handle multiple image URLs as JSON array
+if(!is_array($input['image_urls']) || empty($input['image_urls'])) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'image_urls must be a non-empty array']);
+    exit;
+}
+
 $image_urls = '';
-if(isset($input['image_urls']) && is_array($input['image_urls'])) {
+if(is_array($input['image_urls'])) {
     $validated_urls = array();
     foreach($input['image_urls'] as $url) {
         if(filter_var($url, FILTER_VALIDATE_URL)) {
             $validated_urls[] = mysqli_real_escape_string($conn, $url);
         }
     }
-    $image_urls = !empty($validated_urls) ? json_encode($validated_urls) : '';
+    if(empty($validated_urls)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'image_urls must contain at least one valid URL']);
+        exit;
+    }
+    $image_urls = json_encode($validated_urls);
 }
 
 // Map to existing table columns
 $title = "$brand $product_type - $ad_title";
-$price = $price_per_month;
-$condition = 'good';
 
 $table_name = 'harmonium_adds';
 
 // Insert into database using existing table columns
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, image_url, brand, created_at, updated_at)
-               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', '$image_urls', '$brand', NOW(), NOW())";
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price_per_month, security_deposit, city, latitude, longitude, image_url, brand, created_at, updated_at)
+               VALUES ('$user_id', '$title', '$description', '$price_per_month', '$security_deposit', '$city', '$latitude', '$longitude', '$image_urls', '$brand', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;
@@ -125,7 +176,19 @@ if($conn->query($insert_sql)) {
     $response['message'] = 'Harmonium ad created successfully';
     $response['data'] = [
         'add_id' => $add_id,
-        'created_at' => date('Y-m-d H:i:s')
+        'table' => $table_name,
+        'created_at' => date('Y-m-d H:i:s'),
+        'user_id' => $user_id,
+        'brand' => $brand,
+        'product_type' => $product_type,
+        'ad_title' => $ad_title,
+        'description' => $description,
+        'price_per_month' => $price_per_month,
+        'security_deposit' => $security_deposit,
+        'city' => $city,
+        'latitude' => $latitude,
+        'longitude' => $longitude,
+        'image_urls' => $validated_urls
     ];
 } else {
     http_response_code(500);
