@@ -200,7 +200,9 @@ foreach($required_fields as $field) {
         exit;
     }
     
-    $updates[] = "`$field` = '$value'";
+    // Map price_per_month field to price column in database
+    $db_field = ($field === 'price_per_month') ? 'price' : $field;
+    $updates[] = "`$db_field` = '$value'";
     $update_fields[$field] = $value;
 }
 
