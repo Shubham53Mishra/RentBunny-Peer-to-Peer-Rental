@@ -52,9 +52,9 @@ if($result->num_rows == 0) {
 $user_row = $result->fetch_assoc();
 $user_id = $user_row['id'];
 
-if($_SERVER['REQUEST_METHOD'] != 'POST') {
+if($_SERVER['REQUEST_METHOD'] != 'PUT' && $_SERVER['REQUEST_METHOD'] != 'POST') {
     http_response_code(405);
-    echo json_encode(['success' => false, 'message' => 'Only POST method allowed']);
+    echo json_encode(['success' => false, 'message' => 'Only PUT or POST method allowed']);
     exit;
 }
 
@@ -105,11 +105,24 @@ if($ad_row['user_id'] != $user_id) {
 $update_fields = [];
 $updates = [];
 
-// List of allowed fields to update - same as POST input fields
-$allowed_fields = ['brand', 'model', 'product_type', 'price_per_month', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'image_url', 'security_deposit'];
+// List of required fields to update - same as POST required fields
+$required_fields = ['brand', 'model', 'product_type', 'price_per_month', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'image_url', 'security_deposit'];
 
-foreach($allowed_fields as $field) {
-    if(isset($input[$field])) {
+// Check if all required fields are provided
+$missing_fields = [];
+foreach($required_fields as $field) {
+    if(!isset($input[$field]) || ($field !== 'image_url' && empty($input[$field]))) {
+        $missing_fields[] = $field;
+    }
+}
+
+if(!empty($missing_fields)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Missing required fields', 'missing_fields' => $missing_fields, 'received_fields' => array_keys($input)]);
+    exit;
+}
+
+foreach($required_fields as $field) {
         $value = $input[$field];
         
         // Map field names to database columns
@@ -170,7 +183,6 @@ foreach($allowed_fields as $field) {
         
         $updates[] = "`$db_field` = '$value'";
         $update_fields[$field] = $value;
-    }
 }
 
 // Check if at least one field is being updated
