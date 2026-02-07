@@ -106,7 +106,7 @@ $update_fields = [];
 $updates = [];
 
 // List of required fields to update
-$required_fields = ['title', 'description', 'price_per_month', 'security_deposit', 'city', 'latitude', 'longitude', 'image_url', 'brand', 'power', 'product_type', 'ad_title'];
+$required_fields = ['description', 'price_per_month', 'security_deposit', 'city', 'latitude', 'longitude', 'image_url', 'brand', 'power', 'product_type', 'ad_title'];
 
 // Check if all required fields are provided
 foreach($required_fields as $field) {
@@ -200,8 +200,13 @@ foreach($required_fields as $field) {
         exit;
     }
     
-    // Map price_per_month field to price column in database
-    $db_field = ($field === 'price_per_month') ? 'price' : $field;
+    // Map price_per_month field to price column, ad_title to title column in database
+    $db_field = $field;
+    if($field === 'price_per_month') {
+        $db_field = 'price';
+    } elseif($field === 'ad_title') {
+        $db_field = 'title';
+    }
     $updates[] = "`$db_field` = '$value'";
     $update_fields[$field] = $value;
 }
