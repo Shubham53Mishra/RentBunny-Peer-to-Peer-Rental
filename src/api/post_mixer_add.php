@@ -170,8 +170,8 @@ if(is_array($input['image_urls'])) {
 $table_name = 'mixer_adds';
 
 // Insert into database using existing table columns
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, security_deposit, city, latitude, longitude, image_url, brand, power, product_type, ad_title, created_at, updated_at)
-               VALUES ('$user_id', '$ad_title', '$description', '$price_per_month', '$security_deposit', '$city', '$latitude', '$longitude', '$image_urls', '$brand', '$power', '$product_type', '$ad_title', NOW(), NOW())";
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, security_deposit, city, latitude, longitude, image_url, brand, power, product_type, created_at, updated_at)
+               VALUES ('$user_id', '$ad_title', '$description', '$price_per_month', '$security_deposit', '$city', '$latitude', '$longitude', '$image_urls', '$brand', '$power', '$product_type', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;
