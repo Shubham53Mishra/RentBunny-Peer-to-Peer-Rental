@@ -106,7 +106,7 @@ $update_fields = [];
 $updates = [];
 
 // List of required fields to update
-$required_fields = ['title', 'description', 'price_per_month', 'condition', 'city', 'latitude', 'longitude', 'brand', 'product_type', 'security_deposit', 'image_url'];
+$required_fields = ['title', 'description', 'price_per_month', 'city', 'latitude', 'longitude', 'brand', 'product_type', 'security_deposit', 'image_url'];
 
 // Check if all required fields are provided
 foreach($required_fields as $field) {
