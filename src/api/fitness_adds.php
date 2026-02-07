@@ -33,25 +33,31 @@ if($_SERVER['REQUEST_METHOD'] == 'GET') {
         exit;
     }
     
-    $fitness_tables = array('treadmill_adds', 'massager_adds', 'excercise_bike_adds', 'cross_trainer_adds');
-    $all_products = array();
+    // Query from the fitness_adds table where POST API saves data
+    $sql = "SELECT * FROM fitness_adds ORDER BY created_at DESC";
+    $result = $conn->query($sql);
     
-    foreach($fitness_tables as $table) {
-        $table_name = mysqli_real_escape_string($conn, $table);
-        $check_table_sql = "SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '$table_name' LIMIT 1";
-        $table_exists = $conn->query($check_table_sql);
-        
-        if($table_exists && $table_exists->num_rows > 0) {
-            $sql = "SELECT * FROM " . $table_name . " ORDER BY created_at DESC";
-            $result = $conn->query($sql);
-            if($result && $result->num_rows > 0) {
-                // Extract product type from table name (remove '_adds' suffix)
-                $product_type = str_replace('_adds', '', $table);
-                while($row = $result->fetch_assoc()) {
-                    $row['product_type'] = $product_type;
-                    $all_products[] = $row;
-                }
-            }
+    $all_products = array();
+    if($result && $result->num_rows > 0) {
+        while($row = $result->fetch_assoc()) {
+            // Transform row to match POST response format
+            $product = [
+                'id' => $row['id'],
+                'user_id' => $row['user_id'],
+                'ad_title' => $row['title'], // Map 'title' to 'ad_title'
+                'description' => $row['description'],
+                'price_per_month' => $row['price'], // Map 'price' to 'price_per_month'
+                'city' => $row['city'],
+                'latitude' => $row['latitude'],
+                'longitude' => $row['longitude'],
+                'image_url' => $row['image_url'],
+                'brand' => $row['brand'],
+                'product_type' => $row['product_type'],
+                'security_deposit' => $row['security_deposit'],
+                'created_at' => $row['created_at'],
+                'updated_at' => $row['updated_at']
+            ];
+            $all_products[] = $product;
         }
     }
     
