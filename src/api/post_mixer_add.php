@@ -59,7 +59,7 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') {
 }
 
 // Required fields for Mixer ad
-$required_fields = ['power', 'model', 'brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'image_urls'];
+$required_fields = ['power', 'brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'image_urls'];
 
 // Get JSON data
 $input = json_decode(file_get_contents('php://input'), true);
@@ -99,7 +99,6 @@ foreach($required_fields as $field) {
 
 // Sanitize input
 $power = mysqli_real_escape_string($conn, (string)$input['power']);
-$model = mysqli_real_escape_string($conn, (string)$input['model']);
 $brand = mysqli_real_escape_string($conn, (string)$input['brand']);
 $product_type = mysqli_real_escape_string($conn, (string)$input['product_type']);
 $price_per_month = floatval($input['price_per_month']);
@@ -111,7 +110,7 @@ $longitude = floatval($input['longitude']);
 $city = mysqli_real_escape_string($conn, (string)$input['city']);
 
 // Validate string fields are not empty after sanitization
-$string_fields = ['power', 'model', 'brand', 'product_type', 'ad_title', 'description', 'city'];
+$string_fields = ['power', 'brand', 'product_type', 'ad_title', 'description', 'city'];
 foreach($string_fields as $field) {
     $field_var = $$field;
     if(empty($field_var) || strlen(trim($field_var)) === 0) {
@@ -168,13 +167,13 @@ if(is_array($input['image_urls'])) {
 }
 
 // Map to existing table columns
-$title = "$product_type - $brand ($model)";
+$title = "$product_type - $brand";
 
 $table_name = 'mixer_adds';
 
 // Insert into database using existing table columns
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, security_deposit, city, latitude, longitude, image_url, brand, power, model, product_type, ad_title, created_at, updated_at)
-               VALUES ('$user_id', '$title', '$description', '$price_per_month', '$security_deposit', '$city', '$latitude', '$longitude', '$image_urls', '$brand', '$power', '$model', '$product_type', '$ad_title', NOW(), NOW())";
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, security_deposit, city, latitude, longitude, image_url, brand, power, product_type, ad_title, created_at, updated_at)
+               VALUES ('$user_id', '$title', '$description', '$price_per_month', '$security_deposit', '$city', '$latitude', '$longitude', '$image_urls', '$brand', '$power', '$product_type', '$ad_title', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;
@@ -186,7 +185,6 @@ if($conn->query($insert_sql)) {
         'created_at' => date('Y-m-d H:i:s'),
         'user_id' => $user_id,
         'power' => $power,
-        'model' => $model,
         'brand' => $brand,
         'product_type' => $product_type,
         'ad_title' => $ad_title,
