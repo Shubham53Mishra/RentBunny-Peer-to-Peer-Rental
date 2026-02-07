@@ -52,9 +52,9 @@ if($result->num_rows == 0) {
 $user_row = $result->fetch_assoc();
 $user_id = $user_row['id'];
 
-if($_SERVER['REQUEST_METHOD'] != 'POST') {
+if($_SERVER['REQUEST_METHOD'] != 'PUT' && $_SERVER['REQUEST_METHOD'] != 'POST') {
     http_response_code(405);
-    echo json_encode(['success' => false, 'message' => 'Only POST method allowed']);
+    echo json_encode(['success' => false, 'message' => 'Only PUT or POST method allowed']);
     exit;
 }
 
@@ -101,65 +101,115 @@ if($ad_row['user_id'] != $user_id) {
     exit;
 }
 
-// Build update query with only provided fields
+// Build update query with required fields - same as POST
 $update_fields = [];
 $updates = [];
 
-// List of allowed fields to update
-$allowed_fields = ['title', 'description', 'price', 'condition', 'city', 'latitude', 'longitude', 'image_url', 'brand'];
+// List of required fields to update - same as POST
+$required_fields = ['paper_size', 'model', 'brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'image_urls'];
 
-foreach($allowed_fields as $field) {
-    if(isset($input[$field])) {
-        $value = $input[$field];
-        
-        // Special handling for image_urls array
-        if($field === 'image_url' && is_array($value)) {
-            $validated_urls = array();
-            foreach($value as $url) {
-                if(filter_var($url, FILTER_VALIDATE_URL)) {
-                    $validated_urls[] = mysqli_real_escape_string($conn, $url);
-                }
-            }
-            $image_urls = !empty($validated_urls) ? json_encode($validated_urls) : '';
-            $updates[] = "`image_url` = '$image_urls'";
-            continue;
-        }
-        
-        // Type-specific sanitization
-        if(in_array($field, ['price', 'latitude', 'longitude'])) {
-            $value = floatval($value);
-        } else {
-            $value = mysqli_real_escape_string($conn, $value);
-        }
-        
-        // Validate numeric values
-        if($field === 'price' && $value <= 0) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'price must be greater than 0']);
-            exit;
-        }
-        if($field === 'latitude' && ($value < -90 || $value > 90)) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'Invalid latitude value']);
-            exit;
-        }
-        if($field === 'longitude' && ($value < -180 || $value > 180)) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'Invalid longitude value']);
-            exit;
-        }
-        
-        $updates[] = "`$field` = '$value'";
-        $update_fields[$field] = $value;
+// Check if all required fields are provided
+$missing_fields = [];
+foreach($required_fields as $field) {
+    if(!isset($input[$field]) || (is_string($input[$field]) && empty($input[$field]))) {
+        $missing_fields[] = $field;
     }
 }
 
-// Check if at least one field is being updated
-if(empty($updates)) {
+if(!empty($missing_fields)) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'No fields to update. Provide at least one field to update.']);
+    echo json_encode(['success' => false, 'message' => 'Missing required fields', 'missing_fields' => $missing_fields, 'received_fields' => array_keys($input)]);
     exit;
 }
+
+// Sanitize and validate input
+$paper_size = mysqli_real_escape_string($conn, $input['paper_size']);
+$model = mysqli_real_escape_string($conn, $input['model']);
+$brand = mysqli_real_escape_string($conn, $input['brand']);
+$product_type = mysqli_real_escape_string($conn, $input['product_type']);
+$price_per_month = floatval($input['price_per_month']);
+$security_deposit = floatval($input['security_deposit']);
+$ad_title = mysqli_real_escape_string($conn, $input['ad_title']);
+$description = mysqli_real_escape_string($conn, $input['description']);
+$latitude = floatval($input['latitude']);
+$longitude = floatval($input['longitude']);
+$city = mysqli_real_escape_string($conn, $input['city']);
+
+// Validate numeric values
+if($price_per_month <= 0) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'price_per_month must be greater than 0']);
+    exit;
+}
+if($latitude < -90 || $latitude > 90) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid latitude value']);
+    exit;
+}
+if($longitude < -180 || $longitude > 180) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid longitude value']);
+    exit;
+}
+if($security_deposit < 0) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'security_deposit must be greater than or equal to 0']);
+    exit;
+}
+
+// Handle image_urls array - REQUIRED
+if(!isset($input['image_urls']) || !is_array($input['image_urls']) || empty($input['image_urls'])) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'image_urls must be a non-empty array']);
+    exit;
+}
+
+$validated_urls = array();
+foreach($input['image_urls'] as $url) {
+    if(filter_var($url, FILTER_VALIDATE_URL)) {
+        $validated_urls[] = mysqli_real_escape_string($conn, $url);
+    }
+}
+
+if(empty($validated_urls)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'image_urls must contain at least one valid URL']);
+    exit;
+}
+
+$image_urls = json_encode($validated_urls);
+
+// Build title from product_type and brand
+$title = "$product_type - $brand ($model)";
+
+// Build update query
+$updates[] = "`title` = '$title'";
+$updates[] = "`description` = '$description'";
+$updates[] = "`price` = '$price_per_month'";
+$updates[] = "`city` = '$city'";
+$updates[] = "`latitude` = '$latitude'";
+$updates[] = "`longitude` = '$longitude'";
+$updates[] = "`image_url` = '$image_urls'";
+$updates[] = "`brand` = '$brand'";
+$updates[] = "`product_type` = '$product_type'";
+$updates[] = "`security_deposit` = '$security_deposit'";
+
+$update_fields = [
+    'paper_size' => $paper_size,
+    'model' => $model,
+    'brand' => $brand,
+    'product_type' => $product_type,
+    'price_per_month' => $price_per_month,
+    'security_deposit' => $security_deposit,
+    'ad_title' => $ad_title,
+    'description' => $description,
+    'latitude' => $latitude,
+    'longitude' => $longitude,
+    'city' => $city,
+    'image_urls' => json_decode($image_urls, true)
+];
+
+
 
 // Add updated_at timestamp
 $updates[] = "`updated_at` = NOW()";
@@ -168,23 +218,27 @@ $updates[] = "`updated_at` = NOW()";
 $update_sql = "UPDATE $table_name SET " . implode(', ', $updates) . " WHERE id = '$add_id'";
 
 if($conn->query($update_sql)) {
+    // Fetch updated record to return in response
+    $fetch_sql = "SELECT id, user_id, title, description, price as price_per_month, city, latitude, longitude, image_url, brand, product_type, security_deposit, created_at, updated_at FROM $table_name WHERE id = '$add_id'";
+    $fetch_result = $conn->query($fetch_sql);
+    $updated_record = $fetch_result ? $fetch_result->fetch_assoc() : null;
+    
     $response['success'] = true;
-    $response['message'] = 'Printer_adds updated successfully';
+    $response['message'] = 'Printer ad updated successfully';
     $response['data'] = [
-        'add_id' => $add_id,
-        'table' => $table_name,
-        'updated_at' => date('Y-m-d H:i:s'),
-        'updated_fields' => array_keys($update_fields)
+        'id' => $add_id,
+        'user_id' => $user_id,
+        'updated_fields' => $update_fields,
+        'updated_record' => $updated_record,
+        'updated_at' => date('Y-m-d H:i:s')
     ];
     http_response_code(200);
 } else {
     http_response_code(500);
     $response['success'] = false;
-    $response['message'] = 'Failed to update ' . $table_name;
+    $response['message'] = 'Failed to update printer ad';
     $response['error'] = $conn->error;
-    $response['error_code'] = $conn->errno;
     $response['debug_sql'] = $update_sql;
-    $response['debug_input'] = $input;
 }
 
 echo json_encode($response, JSON_PRETTY_PRINT);
