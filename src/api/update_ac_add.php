@@ -200,7 +200,13 @@ $update_fields = [
     'brand' => $brand,
     'product_type' => $product_type,
     'price_per_month' => $price_per_month,
-    'security_deposit' => $security_deposit
+    'security_deposit' => $security_deposit,
+    'ad_title' => $ad_title,
+    'description' => $description,
+    'latitude' => $latitude,
+    'longitude' => $longitude,
+    'city' => $city,
+    'image_urls' => json_decode($image_urls, true)
 ];
 
 
