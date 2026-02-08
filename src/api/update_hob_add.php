@@ -106,7 +106,7 @@ $update_fields = [];
 $updates = [];
 
 // List of required fields to update
-$required_fields = ['title', 'description', 'price_per_month', 'city', 'latitude', 'longitude', 'brand', 'product_type', 'security_deposit', 'image_url'];
+$required_fields = ['title', 'description', 'price_per_month', 'city', 'latitude', 'longitude', 'brand', 'product_type', 'security_deposit'];
 
 // Check if all required fields are provided
 foreach($required_fields as $field) {
@@ -133,33 +133,6 @@ foreach($required_fields as $field) {
             echo json_encode(['success' => false, 'message' => "Field cannot be empty: $field"]);
             exit;
         }
-    }
-    
-    // Special handling for image_url array - REQUIRED and must have valid URLs
-    if($field === 'image_url') {
-        if(!is_array($value) || empty($value)) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'image_url must be a non-empty array']);
-            exit;
-        }
-        
-        $validated_urls = array();
-        foreach($value as $url) {
-            if(filter_var($url, FILTER_VALIDATE_URL)) {
-                $validated_urls[] = mysqli_real_escape_string($conn, $url);
-            }
-        }
-        
-        if(empty($validated_urls)) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'image_url must contain at least one valid URL']);
-            exit;
-        }
-        
-        $image_urls = json_encode($validated_urls);
-        $updates[] = "`image_url` = '$image_urls'";
-        $update_fields[$field] = $value;
-        continue;
     }
     
     // Type-specific sanitization

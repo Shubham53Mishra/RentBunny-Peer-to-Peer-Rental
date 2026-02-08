@@ -106,7 +106,7 @@ $update_fields = [];
 $updates = [];
 
 // List of required fields to update - same as POST
-$required_fields = ['paper_size', 'model', 'brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'image_urls'];
+$required_fields = ['paper_size', 'model', 'brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
 
 // Check if all required fields are provided
 $missing_fields = [];
@@ -157,27 +157,7 @@ if($security_deposit < 0) {
     exit;
 }
 
-// Handle image_urls array - REQUIRED
-if(!isset($input['image_urls']) || !is_array($input['image_urls']) || empty($input['image_urls'])) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'image_urls must be a non-empty array']);
-    exit;
-}
-
-$validated_urls = array();
-foreach($input['image_urls'] as $url) {
-    if(filter_var($url, FILTER_VALIDATE_URL)) {
-        $validated_urls[] = mysqli_real_escape_string($conn, $url);
-    }
-}
-
-if(empty($validated_urls)) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'image_urls must contain at least one valid URL']);
-    exit;
-}
-
-$image_urls = json_encode($validated_urls);
+// Images will be updated separately via image_upload.php
 
 // Build title from product_type and brand
 $title = "$product_type - $brand ($model)";
@@ -189,7 +169,6 @@ $updates[] = "`price` = '$price_per_month'";
 $updates[] = "`city` = '$city'";
 $updates[] = "`latitude` = '$latitude'";
 $updates[] = "`longitude` = '$longitude'";
-$updates[] = "`image_url` = '$image_urls'";
 $updates[] = "`brand` = '$brand'";
 $updates[] = "`product_type` = '$product_type'";
 $updates[] = "`security_deposit` = '$security_deposit'";
@@ -205,8 +184,7 @@ $update_fields = [
     'description' => $description,
     'latitude' => $latitude,
     'longitude' => $longitude,
-    'city' => $city,
-    'image_urls' => json_decode($image_urls, true)
+    'city' => $city
 ];
 
 
@@ -229,7 +207,6 @@ if($conn->query($update_sql)) {
         'id' => $add_id,
         'user_id' => $user_id,
         'updated_fields' => $update_fields,
-        'updated_record' => $updated_record,
         'updated_at' => date('Y-m-d H:i:s')
     ];
     http_response_code(200);

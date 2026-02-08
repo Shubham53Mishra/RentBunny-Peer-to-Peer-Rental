@@ -59,7 +59,7 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') {
 }
 
 // Required fields for Mixer ad
-$required_fields = ['power', 'brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'image_urls'];
+$required_fields = ['power', 'brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
 
 // Get JSON data
 $input = json_decode(file_get_contents('php://input'), true);
@@ -143,35 +143,15 @@ if($longitude < -180 || $longitude > 180) {
 }
 
 
-// Handle multiple image URLs as JSON array
-if(!is_array($input['image_urls']) || empty($input['image_urls'])) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'image_urls must be a non-empty array']);
-    exit;
-}
-
+// Images will be uploaded separately via image_upload.php
 $image_urls = '';
-if(is_array($input['image_urls'])) {
-    $validated_urls = array();
-    foreach($input['image_urls'] as $url) {
-        if(filter_var($url, FILTER_VALIDATE_URL)) {
-            $validated_urls[] = mysqli_real_escape_string($conn, $url);
-        }
-    }
-    if(empty($validated_urls)) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'image_urls must contain at least one valid URL']);
-        exit;
-    }
-    $image_urls = json_encode($validated_urls);
-}
 
 // Map to existing table columns - use ad_title as the title column value
 $table_name = 'mixer_adds';
 
 // Insert into database using existing table columns
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, security_deposit, city, latitude, longitude, image_url, brand, power, product_type, created_at, updated_at)
-               VALUES ('$user_id', '$ad_title', '$description', '$price_per_month', '$security_deposit', '$city', '$latitude', '$longitude', '$image_urls', '$brand', '$power', '$product_type', NOW(), NOW())";
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, security_deposit, city, latitude, longitude, brand, power, product_type, created_at, updated_at)
+               VALUES ('$user_id', '$ad_title', '$description', '$price_per_month', '$security_deposit', '$city', '$latitude', '$longitude', '$brand', '$power', '$product_type', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;
@@ -191,8 +171,7 @@ if($conn->query($insert_sql)) {
         'security_deposit' => $security_deposit,
         'city' => $city,
         'latitude' => $latitude,
-        'longitude' => $longitude,
-        'image_urls' => json_decode($image_urls)
+        'longitude' => $longitude
     ];
     http_response_code(200);
 } else {
