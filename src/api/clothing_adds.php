@@ -34,7 +34,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
     }
     
     // Query directly from clothing_adds table
-    $sql = "SELECT * FROM clothing_adds ORDER BY created_at DESC";
+    // Alias 'price' column as 'price_per_month' in response
+    $sql = "SELECT *, price as price_per_month FROM clothing_adds ORDER BY created_at DESC";
     $result = $conn->query($sql);
     
     if($result) {
