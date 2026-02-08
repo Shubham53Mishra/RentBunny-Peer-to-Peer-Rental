@@ -190,19 +190,19 @@ $updates[] = "`updated_at` = NOW()";
 $update_sql = "UPDATE $table_name SET " . implode(', ', $updates) . " WHERE id = '$add_id'";
 
 if($conn->query($update_sql)) {
-    // Fetch the updated record
-    $select_sql = "SELECT id, user_id, price AS price_per_month, image_url FROM $table_name WHERE id = '$add_id'";
-    $result = $conn->query($select_sql);
-    $updated_record = $result->fetch_assoc();
+    // Fetch updated record to return in response
+    $fetch_sql = "SELECT id, user_id, title, description, price as price_per_month, city, latitude, longitude, image_url, brand, product_type, security_deposit, created_at, updated_at FROM $table_name WHERE id = '$add_id'";
+    $fetch_result = $conn->query($fetch_sql);
+    $updated_record = $fetch_result ? $fetch_result->fetch_assoc() : null;
     
-    // Parse image_url JSON
-    if(isset($updated_record['image_url'])) {
+    // Parse image_url to image_urls
+    if($updated_record && isset($updated_record['image_url'])) {
         $updated_record['image_urls'] = json_decode($updated_record['image_url'], true) ?: [];
         unset($updated_record['image_url']);
     }
     
     $response['success'] = true;
-    $response['message'] = 'Washing machine add updated successfully';
+    $response['message'] = 'Washing machine ad updated successfully';
     $response['data'] = [
         'id' => intval($updated_record['id']),
         'user_id' => intval($updated_record['user_id']),
@@ -216,7 +216,9 @@ if($conn->query($update_sql)) {
         'latitude' => $latitude,
         'longitude' => $longitude,
         'city' => $city,
-        'image_urls' => $updated_record['image_urls']
+        'image_urls' => $updated_record['image_urls'],
+        'created_at' => $updated_record['created_at'],
+        'updated_at' => $updated_record['updated_at']
     ];
     http_response_code(200);
 } else {
