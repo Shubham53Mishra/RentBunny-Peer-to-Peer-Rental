@@ -42,7 +42,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
         $table_exists = $conn->query($check_table_sql);
         
         if($table_exists && $table_exists->num_rows > 0) {
-            $sql = "SELECT * FROM " . $table_name . " ORDER BY created_at DESC";
+            // Alias 'price' column as 'price_per_month' in response
+            $sql = "SELECT *, price as price_per_month FROM " . $table_name . " ORDER BY created_at DESC";
             $result = $conn->query($sql);
             if($result && $result->num_rows > 0) {
                 // Extract product type from table name (remove '_adds' suffix)

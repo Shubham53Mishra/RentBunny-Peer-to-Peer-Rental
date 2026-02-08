@@ -59,7 +59,7 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') {
 }
 
 // Required fields for Wheelchair ad
-$required_fields = ['brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'city'];
+$required_fields = ['brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
 
 // Get JSON data
 $input = json_decode(file_get_contents('php://input'), true);
@@ -91,9 +91,26 @@ $price_per_month = floatval($input['price_per_month']);
 $security_deposit = floatval($input['security_deposit']);
 $ad_title = mysqli_real_escape_string($conn, $input['ad_title']);
 $description = mysqli_real_escape_string($conn, $input['description']);
-$latitude = isset($input['latitude']) ? floatval($input['latitude']) : 0;
-$longitude = isset($input['longitude']) ? floatval($input['longitude']) : 0;
+$latitude = floatval($input['latitude']);
+$longitude = floatval($input['longitude']);
 $city = mysqli_real_escape_string($conn, $input['city']);
+
+// Validate numeric values
+if($price_per_month <= 0) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'price_per_month must be greater than 0']);
+    exit;
+}
+if($latitude < -90 || $latitude > 90) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid latitude value']);
+    exit;
+}
+if($longitude < -180 || $longitude > 180) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid longitude value']);
+    exit;
+}
 
 
 // Handle multiple image URLs as JSON array
@@ -110,14 +127,12 @@ if(isset($input['image_urls']) && is_array($input['image_urls'])) {
 
 // Map to existing table columns
 $title = "$brand $product_type - $ad_title";
-$price = $price_per_month;
-$condition = 'good';
 
 $table_name = 'wheelchair_adds';
 
 // Insert into database using existing table columns
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, image_url, brand, created_at, updated_at)
-               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', '$image_urls', '$brand', NOW(), NOW())";
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, product_type, city, latitude, longitude, image_url, brand, security_deposit, created_at, updated_at)
+               VALUES ('$user_id', '$title', '$description', '$price_per_month', '$product_type', '$city', '$latitude', '$longitude', '$image_urls', '$brand', '$security_deposit', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;
@@ -125,8 +140,15 @@ if($conn->query($insert_sql)) {
     $response['message'] = 'Wheelchair ad created successfully';
     $response['data'] = [
         'add_id' => $add_id,
-        'created_at' => date('Y-m-d H:i:s')
+        'table' => $table_name,
+        'created_at' => date('Y-m-d H:i:s'),
+        'user_id' => $user_id,
+        'brand' => $brand,
+        'product_type' => $product_type,
+        'price_per_month' => $price_per_month,
+        'security_deposit' => $security_deposit
     ];
+    http_response_code(200);
 } else {
     http_response_code(500);
     $response['success'] = false;
