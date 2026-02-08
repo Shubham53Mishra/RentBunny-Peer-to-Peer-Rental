@@ -59,7 +59,7 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') {
 }
 
 // Required fields for Refrigerator ad
-$required_fields = ['height', 'length', 'width', 'capacity', 'defrosting_type', 'brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'image_urls'];
+$required_fields = ['height', 'length', 'width', 'capacity', 'defrosting_type', 'brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
 
 // Get JSON data
 $input = json_decode(file_get_contents('php://input'), true);
@@ -119,31 +119,9 @@ if($longitude < -180 || $longitude > 180) {
 }
 if($security_deposit < 0) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'security_deposit must be greater than or equal to 0']);
+    echo json_encode(['success' => false, 'message' => 'security_deposit must be >= 0']);
     exit;
 }
-
-// Handle multiple image URLs as JSON array - REQUIRED
-if(!isset($input['image_urls']) || !is_array($input['image_urls']) || empty($input['image_urls'])) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'image_urls must be a non-empty array']);
-    exit;
-}
-
-$validated_urls = array();
-foreach($input['image_urls'] as $url) {
-    if(filter_var($url, FILTER_VALIDATE_URL)) {
-        $validated_urls[] = mysqli_real_escape_string($conn, $url);
-    }
-}
-
-if(empty($validated_urls)) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'image_urls must contain at least one valid URL']);
-    exit;
-}
-
-$image_urls = json_encode($validated_urls);
 
 // Map to existing table columns
 $title = "$product_type - $brand ($capacity)";
@@ -151,41 +129,45 @@ $price = $price_per_month;
 
 $table_name = 'refrigerator_adds';
 
-// Insert into database using existing table columns
+// Insert into database using existing table columns (images uploaded separately)
 $insert_sql = "INSERT INTO $table_name (user_id, title, description, price, city, latitude, longitude, image_url, brand, product_type, security_deposit, created_at, updated_at)
-               VALUES ('$user_id', '$title', '$description', '$price', '$city', '$latitude', '$longitude', '$image_urls', '$brand', '$product_type', '$security_deposit', NOW(), NOW())";
+               VALUES ('$user_id', '$title', '$description', '$price', '$city', '$latitude', '$longitude', '[]', '$brand', '$product_type', '$security_deposit', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;
     $response['success'] = true;
-    $response['message'] = 'Refrigerator ad posted successfully';
+    $response['message'] = 'Refrigerator ad posted successfully. Upload images using image_upload.php endpoint';
     $response['data'] = [
         'id' => $add_id,
         'user_id' => $user_id,
+        'ad_title' => $ad_title,
+        'description' => $description,
+        'price_per_month' => $price_per_month,
+        'city' => $city,
+        'latitude' => $latitude,
+        'longitude' => $longitude,
+        'brand' => $brand,
+        'product_type' => $product_type,
         'height' => $height,
         'length' => $length,
         'width' => $width,
         'capacity' => $capacity,
         'defrosting_type' => $defrosting_type,
-        'brand' => $brand,
-        'product_type' => $product_type,
-        'price_per_month' => $price_per_month,
         'security_deposit' => $security_deposit,
-        'ad_title' => $ad_title,
-        'description' => $description,
-        'latitude' => $latitude,
-        'longitude' => $longitude,
-        'city' => $city,
-        'image_urls' => $validated_urls
+        'created_at' => date('Y-m-d H:i:s'),
+        'next_step' => 'Upload images using POST to /api/image_upload.php with add_id=' . $add_id . ' and type=refrigerator'
     ];
-    http_response_code(201);
+    http_response_code(200);
 } else {
     http_response_code(500);
     $response['success'] = false;
     $response['message'] = 'Failed to post refrigerator ad';
     $response['error'] = $conn->error;
+    $response['error_code'] = $conn->errno;
+    $response['debug_sql'] = $insert_sql;
+    $response['debug_input'] = $input;
 }
 
-echo json_encode($response);
+echo json_encode($response, JSON_PRETTY_PRINT);
 $conn->close();
 ?>

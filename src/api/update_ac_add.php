@@ -105,114 +105,126 @@ if($ad_row['user_id'] != $user_id) {
 $update_fields = [];
 $updates = [];
 
-// List of required fields to update - same as POST
-$required_fields = ['power_requirements', 'capacity', 'brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'image_urls'];
+// List of required fields to update - same as POST (without image_urls)
+$required_fields = ['power_requirements', 'capacity', 'brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
 
-// Check if all required fields are provided
-$missing_fields = [];
-foreach($required_fields as $field) {
-    if(!isset($input[$field]) || (is_string($input[$field]) && empty($input[$field]))) {
-        $missing_fields[] = $field;
+// Check if at least some fields are provided
+if(empty(array_filter($input, function($val, $key) use ($required_fields) {
+    return in_array($key, $required_fields) && !empty($val);
+}, ARRAY_FILTER_USE_BOTH))) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'At least one field must be provided to update', 'received_fields' => array_keys($input)]);
+    exit;
+}
+
+// Sanitize and validate input - only update fields that are provided
+$updates = [];
+$update_fields = [];
+
+if(isset($input['power_requirements']) && !empty($input['power_requirements'])) {
+    $power_requirements = mysqli_real_escape_string($conn, $input['power_requirements']);
+    $update_fields['power_requirements'] = $power_requirements;
+}
+
+if(isset($input['capacity']) && !empty($input['capacity'])) {
+    $capacity = mysqli_real_escape_string($conn, $input['capacity']);
+    $update_fields['capacity'] = $capacity;
+}
+
+if(isset($input['brand']) && !empty($input['brand'])) {
+    $brand = mysqli_real_escape_string($conn, $input['brand']);
+    $update_fields['brand'] = $brand;
+}
+
+if(isset($input['product_type']) && !empty($input['product_type'])) {
+    $product_type = mysqli_real_escape_string($conn, $input['product_type']);
+    $update_fields['product_type'] = $product_type;
+}
+
+if(isset($input['price_per_month']) && $input['price_per_month'] > 0) {
+    $price_per_month = floatval($input['price_per_month']);
+    if($price_per_month <= 0) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'price_per_month must be greater than 0']);
+        exit;
     }
+    $update_fields['price_per_month'] = $price_per_month;
+    $updates[] = "`price` = '$price_per_month'";
 }
 
-if(!empty($missing_fields)) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Missing required fields', 'missing_fields' => $missing_fields, 'received_fields' => array_keys($input)]);
-    exit;
+if(isset($input['security_deposit']) && $input['security_deposit'] >= 0) {
+    $security_deposit = floatval($input['security_deposit']);
+    $update_fields['security_deposit'] = $security_deposit;
+    $updates[] = "`security_deposit` = '$security_deposit'";
 }
 
-// Sanitize and validate input
-$power_requirements = mysqli_real_escape_string($conn, $input['power_requirements']);
-$capacity = mysqli_real_escape_string($conn, $input['capacity']);
-$brand = mysqli_real_escape_string($conn, $input['brand']);
-$product_type = mysqli_real_escape_string($conn, $input['product_type']);
-$price_per_month = floatval($input['price_per_month']);
-$security_deposit = floatval($input['security_deposit']);
-$ad_title = mysqli_real_escape_string($conn, $input['ad_title']);
-$description = mysqli_real_escape_string($conn, $input['description']);
-$latitude = floatval($input['latitude']);
-$longitude = floatval($input['longitude']);
-$city = mysqli_real_escape_string($conn, $input['city']);
-
-// Validate numeric values
-if($price_per_month <= 0) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'price_per_month must be greater than 0']);
-    exit;
-}
-if($latitude < -90 || $latitude > 90) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Invalid latitude value']);
-    exit;
-}
-if($longitude < -180 || $longitude > 180) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Invalid longitude value']);
-    exit;
-}
-if($security_deposit < 0) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'security_deposit must be greater than or equal to 0']);
-    exit;
+if(isset($input['ad_title']) && !empty($input['ad_title'])) {
+    $ad_title = mysqli_real_escape_string($conn, $input['ad_title']);
+    $update_fields['ad_title'] = $ad_title;
 }
 
-// Handle image_urls array - REQUIRED
-if(!isset($input['image_urls']) || !is_array($input['image_urls']) || empty($input['image_urls'])) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'image_urls must be a non-empty array']);
-    exit;
+if(isset($input['description']) && !empty($input['description'])) {
+    $description = mysqli_real_escape_string($conn, $input['description']);
+    $update_fields['description'] = $description;
+    $updates[] = "`description` = '$description'";
 }
 
-$validated_urls = array();
-foreach($input['image_urls'] as $url) {
-    if(filter_var($url, FILTER_VALIDATE_URL)) {
-        $validated_urls[] = mysqli_real_escape_string($conn, $url);
+if(isset($input['latitude'])) {
+    $latitude = floatval($input['latitude']);
+    if($latitude < -90 || $latitude > 90) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Invalid latitude value']);
+        exit;
     }
+    $update_fields['latitude'] = $latitude;
+    $updates[] = "`latitude` = '$latitude'";
 }
 
-if(empty($validated_urls)) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'image_urls must contain at least one valid URL']);
-    exit;
+if(isset($input['longitude'])) {
+    $longitude = floatval($input['longitude']);
+    if($longitude < -180 || $longitude > 180) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Invalid longitude value']);
+        exit;
+    }
+    $update_fields['longitude'] = $longitude;
+    $updates[] = "`longitude` = '$longitude'";
 }
 
-$image_urls = json_encode($validated_urls);
+if(isset($input['city']) && !empty($input['city'])) {
+    $city = mysqli_real_escape_string($conn, $input['city']);
+    $update_fields['city'] = $city;
+    $updates[] = "`city` = '$city'";
+}
 
-// Build title from product_type and brand
-$title = "$product_type - $brand ($capacity)";
+// If brand or capacity changed, update title
+if(isset($brand) || isset($capacity) || isset($product_type)) {
+    $current_brand = isset($brand) ? $brand : $ad_row['brand'];
+    $current_capacity = isset($capacity) ? $capacity : $ad_row['capacity'];
+    $current_product_type = isset($product_type) ? $product_type : $ad_row['product_type'];
+    $title = "$current_product_type - $current_brand ($current_capacity)";
+    $updates[] = "`title` = '$title'";
+}
 
-// Build update query
-$updates[] = "`title` = '$title'";
-$updates[] = "`description` = '$description'";
-$updates[] = "`price` = '$price_per_month'";
-$updates[] = "`city` = '$city'";
-$updates[] = "`latitude` = '$latitude'";
-$updates[] = "`longitude` = '$longitude'";
-$updates[] = "`image_url` = '$image_urls'";
-$updates[] = "`brand` = '$brand'";
-$updates[] = "`product_type` = '$product_type'";
-$updates[] = "`security_deposit` = '$security_deposit'";
+if(isset($brand)) {
+    $updates[] = "`brand` = '$brand'";
+}
 
-$update_fields = [
-    'power_requirements' => $power_requirements,
-    'capacity' => $capacity,
-    'brand' => $brand,
-    'product_type' => $product_type,
-    'price_per_month' => $price_per_month,
-    'security_deposit' => $security_deposit,
-    'ad_title' => $ad_title,
-    'description' => $description,
-    'latitude' => $latitude,
-    'longitude' => $longitude,
-    'city' => $city,
-    'image_urls' => json_decode($image_urls, true)
-];
+if(isset($product_type)) {
+    $updates[] = "`product_type` = '$product_type'";
+}
 
 
 
 // Add updated_at timestamp
 $updates[] = "`updated_at` = NOW()";
+
+// Check if any fields were provided for update
+if(count($updates) <= 1) {  // Only updated_at was added
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'At least one field must be provided to update', 'valid_fields' => $required_fields]);
+    exit;
+}
 
 // Build and execute update query
 $update_sql = "UPDATE $table_name SET " . implode(', ', $updates) . " WHERE id = '$add_id'";
@@ -230,7 +242,8 @@ if($conn->query($update_sql)) {
         'user_id' => $user_id,
         'updated_fields' => $update_fields,
         'updated_record' => $updated_record,
-        'updated_at' => date('Y-m-d H:i:s')
+        'updated_at' => date('Y-m-d H:i:s'),
+        'note' => 'To update images, use POST to /api/image_upload.php with add_id=' . $add_id
     ];
     http_response_code(200);
 } else {

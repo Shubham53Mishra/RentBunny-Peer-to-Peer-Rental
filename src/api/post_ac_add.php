@@ -59,7 +59,7 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') {
 }
 
 // Required fields for AC ad
-$required_fields = ['power_requirements', 'capacity', 'brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'image_urls'];
+$required_fields = ['power_requirements', 'capacity', 'brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
 
 // Get JSON data
 $input = json_decode(file_get_contents('php://input'), true);
@@ -84,6 +84,8 @@ foreach($required_fields as $field) {
         exit;
     }
 }
+
+
 
 // Sanitize input
 $power_requirements = mysqli_real_escape_string($conn, $input['power_requirements']);
@@ -116,42 +118,20 @@ if($longitude < -180 || $longitude > 180) {
 }
 
 
-// Handle multiple image URLs as JSON array - REQUIRED
-$image_urls = '';
-if(!isset($input['image_urls']) || !is_array($input['image_urls']) || empty($input['image_urls'])) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'image_urls must be a non-empty array']);
-    exit;
-}
-
-$validated_urls = array();
-foreach($input['image_urls'] as $url) {
-    if(filter_var($url, FILTER_VALIDATE_URL)) {
-        $validated_urls[] = mysqli_real_escape_string($conn, $url);
-    }
-}
-
-if(empty($validated_urls)) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'image_urls must contain at least one valid URL']);
-    exit;
-}
-
-$image_urls = json_encode($validated_urls);
 
 // Map to existing table columns
 $title = "$product_type - $brand ($capacity)";
 
 $table_name = 'ac_adds';
 
-// Insert into database using existing table columns
+// Insert into database using existing table columns (without images - upload separately via image_upload.php)
 $insert_sql = "INSERT INTO $table_name (user_id, title, description, price, city, latitude, longitude, image_url, brand, product_type, security_deposit, created_at, updated_at)
-               VALUES ('$user_id', '$title', '$description', '$price_per_month', '$city', '$latitude', '$longitude', '$image_urls', '$brand', '$product_type', '$security_deposit', NOW(), NOW())";
+               VALUES ('$user_id', '$title', '$description', '$price_per_month', '$city', '$latitude', '$longitude', '[]', '$brand', '$product_type', '$security_deposit', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;
     $response['success'] = true;
-    $response['message'] = 'AC ad posted successfully';
+    $response['message'] = 'AC ad posted successfully. Upload images using image_upload.php endpoint';
     $response['data'] = [
         'id' => $add_id,
         'user_id' => $user_id,
@@ -161,13 +141,13 @@ if($conn->query($insert_sql)) {
         'city' => $city,
         'latitude' => $latitude,
         'longitude' => $longitude,
-        'image_urls' => json_decode($image_urls, true),
         'brand' => $brand,
         'product_type' => $product_type,
         'capacity' => $capacity,
         'power_requirements' => $power_requirements,
         'security_deposit' => $security_deposit,
-        'created_at' => date('Y-m-d H:i:s')
+        'created_at' => date('Y-m-d H:i:s'),
+        'next_step' => 'Upload images using POST to /api/image_upload.php with add_id=' . $add_id
     ];
     http_response_code(200);
 } else {

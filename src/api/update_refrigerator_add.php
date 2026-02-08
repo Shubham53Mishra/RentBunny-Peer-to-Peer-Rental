@@ -106,7 +106,7 @@ $update_fields = [];
 $updates = [];
 
 // List of required fields to update - same as POST
-$required_fields = ['height', 'length', 'width', 'capacity', 'defrosting_type', 'brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'image_urls'];
+$required_fields = ['height', 'length', 'width', 'capacity', 'defrosting_type', 'brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'from_date', 'image_urls'];
 
 // Check if all required fields are provided
 $missing_fields = [];
@@ -137,6 +137,7 @@ $description = mysqli_real_escape_string($conn, $input['description']);
 $latitude = floatval($input['latitude']);
 $longitude = floatval($input['longitude']);
 $city = mysqli_real_escape_string($conn, $input['city']);
+$from_date = mysqli_real_escape_string($conn, $input['from_date']);
 
 // Validate numeric values
 if($price_per_month <= 0) {
@@ -157,6 +158,13 @@ if($longitude < -180 || $longitude > 180) {
 if($security_deposit < 0) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'security_deposit must be greater than or equal to 0']);
+    exit;
+}
+
+// Validate from_date format (YYYY-MM-DD)
+if(!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from_date) || strtotime($from_date) === false) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'from_date must be in YYYY-MM-DD format']);
     exit;
 }
 
@@ -196,6 +204,7 @@ $updates[] = "`image_url` = '$image_urls'";
 $updates[] = "`brand` = '$brand'";
 $updates[] = "`product_type` = '$product_type'";
 $updates[] = "`security_deposit` = '$security_deposit'";
+$updates[] = "`from_date` = '$from_date'";
 
 $update_fields = [
     'height' => $height,
@@ -212,6 +221,7 @@ $update_fields = [
     'latitude' => $latitude,
     'longitude' => $longitude,
     'city' => $city,
+    'from_date' => $from_date,
     'image_urls' => json_decode($image_urls, true)
 ];
 
@@ -252,6 +262,7 @@ if($conn->query($update_sql)) {
         'latitude' => $latitude,
         'longitude' => $longitude,
         'city' => $city,
+        'from_date' => $from_date,
         'image_urls' => $updated_record['image_urls']
     ];
     http_response_code(200);
