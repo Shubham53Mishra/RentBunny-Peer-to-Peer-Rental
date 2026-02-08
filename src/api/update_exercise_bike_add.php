@@ -92,17 +92,7 @@ $latitude = isset($input['latitude']) ? floatval($input['latitude']) : null;
 $longitude = isset($input['longitude']) ? floatval($input['longitude']) : null;
 $city = isset($input['city']) ? mysqli_real_escape_string($conn, $input['city']) : null;
 
-// Handle image URLs validation
-$image_urls = null;
-if(isset($input['image_urls']) && is_array($input['image_urls'])) {
-    $validated_urls = array();
-    foreach($input['image_urls'] as $url) {
-        if(filter_var($url, FILTER_VALIDATE_URL)) {
-            $validated_urls[] = mysqli_real_escape_string($conn, $url);
-        }
-    }
-    $image_urls = !empty($validated_urls) ? json_encode($validated_urls) : null;
-}
+// Note: Image URLs are no longer handled here - use image_upload.php endpoint for images
 
 // Map to existing table columns
 $title = null;
@@ -150,7 +140,6 @@ $update_fields = [];
 if($title) $update_fields[] = "title = '$title'";
 if($description) $update_fields[] = "description = '$description'";
 if($price) $update_fields[] = "price = '$price'";
-if($image_urls !== null) $update_fields[] = "image_url = '$image_urls'";
 if($latitude !== null) $update_fields[] = "latitude = '$latitude'";
 if($longitude !== null) $update_fields[] = "longitude = '$longitude'";
 if($city) $update_fields[] = "city = '$city'";
@@ -173,16 +162,14 @@ if($conn->query($update_sql)) {
         'add_id' => $add_id,
         'table' => $table_name,
         'updated_at' => date('Y-m-d H:i:s'),
-        'user_id' => $user_id
+        'user_id' => $user_id,
+        'note' => 'Upload images using image_upload.php endpoint'
     ];
 } else {
     http_response_code(500);
     $response['success'] = false;
     $response['message'] = 'Failed to update exercise bike ad';
     $response['error'] = $conn->error;
-    $response['error_code'] = $conn->errno;
-    $response['debug_sql'] = $update_sql;
-    $response['debug_input'] = $input;
 }
 
 echo json_encode($response, JSON_PRETTY_PRINT);

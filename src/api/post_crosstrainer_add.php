@@ -120,28 +120,14 @@ if($longitude < -180 || $longitude > 180) {
 }
 
 
-// Handle multiple image URLs as JSON array
-$image_urls = '';
-if(isset($input['image_urls']) && is_array($input['image_urls'])) {
-    $validated_urls = array();
-    foreach($input['image_urls'] as $url) {
-        if(filter_var($url, FILTER_VALIDATE_URL)) {
-            $validated_urls[] = mysqli_real_escape_string($conn, $url);
-        }
-    }
-    $image_urls = !empty($validated_urls) ? json_encode($validated_urls) : '';
-}
-
 // Map to existing table columns
 $title = "$product_type - $brand";
-$price = $price_per_month;
-$condition = 'good';
 
 $table_name = 'cross_trainer_adds';
 
-// Insert into database using existing table columns
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, image_url, brand, created_at, updated_at)
-               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', '$image_urls', '$brand', NOW(), NOW())";
+// Insert into database
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, city, latitude, longitude, brand, product_type, security_deposit, created_at, updated_at)
+               VALUES ('$user_id', '$title', '$description', '$price_per_month', '$city', '$latitude', '$longitude', '$brand', '$product_type', '$security_deposit', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;
@@ -156,7 +142,8 @@ if($conn->query($insert_sql)) {
         'brand' => $brand,
         'max_user_weight' => $max_user_weight,
         'price_per_month' => $price_per_month,
-        'security_deposit' => $security_deposit
+        'security_deposit' => $security_deposit,
+        'note' => 'Upload images using image_upload.php endpoint'
     ];
     http_response_code(200);
 } else {
@@ -164,9 +151,6 @@ if($conn->query($insert_sql)) {
     $response['success'] = false;
     $response['message'] = 'Failed to post crosstrainer ad';
     $response['error'] = $conn->error;
-    $response['error_code'] = $conn->errno;
-    $response['debug_sql'] = $insert_sql;
-    $response['debug_input'] = $input;
 }
 
 echo json_encode($response, JSON_PRETTY_PRINT);

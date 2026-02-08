@@ -105,8 +105,8 @@ if($ad_row['user_id'] != $user_id) {
 $update_fields = [];
 $updates = [];
 
-// List of allowed fields to update
-$allowed_fields = ['title', 'description', 'price', 'condition', 'city', 'latitude', 'longitude', 'image_url', 'brand'];
+// List of allowed fields to update (image_url removed - upload via image_upload.php)
+$allowed_fields = ['title', 'description', 'price', 'condition', 'city', 'latitude', 'longitude', 'brand'];
 
 foreach($allowed_fields as $field) {
     if(isset($input[$field])) {

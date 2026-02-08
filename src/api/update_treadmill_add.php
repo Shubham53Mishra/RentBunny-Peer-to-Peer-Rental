@@ -58,8 +58,8 @@ if($_SERVER['REQUEST_METHOD'] != 'PUT') {
     exit;
 }
 
-// Required fields for treadmill ad - same as POST API
-$required_fields = ['add_id', 'brand', 'product_type', 'price_per_month', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'image_url', 'security_deposit'];
+// Required fields for treadmill ad update (image_url removed - upload via image_upload.php)
+$required_fields = ['add_id', 'brand', 'product_type', 'price_per_month', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'security_deposit'];
 
 // Get JSON data
 $input = json_decode(file_get_contents('php://input'), true);
@@ -116,28 +116,6 @@ $latitude = floatval($input['latitude']);
 $longitude = floatval($input['longitude']);
 $city = mysqli_real_escape_string($conn, $input['city']);
 
-// Handle image_url array
-$image_urls = '';
-if(isset($input['image_url']) && is_array($input['image_url'])) {
-    $validated_urls = array();
-    foreach($input['image_url'] as $url) {
-        if(filter_var($url, FILTER_VALIDATE_URL)) {
-            $validated_urls[] = mysqli_real_escape_string($conn, $url);
-        }
-    }
-    $image_urls = !empty($validated_urls) ? json_encode($validated_urls) : '';
-} else if(isset($input['image_url']) && is_string($input['image_url'])) {
-    if(filter_var($input['image_url'], FILTER_VALIDATE_URL)) {
-        $image_urls = json_encode([mysqli_real_escape_string($conn, $input['image_url'])]);
-    }
-}
-
-if(empty($image_urls)) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'image_url must be a valid URL or array of URLs']);
-    exit;
-}
-
 // Validate numeric values
 if($price_per_month <= 0) {
     http_response_code(400);
@@ -168,7 +146,6 @@ $update_sql = "UPDATE $table_name SET
                city = '$city',
                latitude = '$latitude',
                longitude = '$longitude',
-               image_url = '$image_urls',
                brand = '$brand',
                product_type = '$product_type',
                security_deposit = '$security_deposit',
@@ -187,11 +164,11 @@ if($conn->query($update_sql)) {
         'city' => $city,
         'latitude' => $latitude,
         'longitude' => $longitude,
-        'image_url' => $image_urls,
         'brand' => $brand,
         'product_type' => $product_type,
         'security_deposit' => $security_deposit,
-        'updated_at' => date('Y-m-d H:i:s')
+        'updated_at' => date('Y-m-d H:i:s'),
+        'note' => 'Upload images using image_upload.php endpoint'
     ];
     http_response_code(200);
 } else {
@@ -199,9 +176,6 @@ if($conn->query($update_sql)) {
     $response['success'] = false;
     $response['message'] = 'Failed to update treadmill ad';
     $response['error'] = $conn->error;
-    $response['error_code'] = $conn->errno;
-    $response['debug_sql'] = $update_sql;
-    $response['debug_input'] = $input;
 }
 
 echo json_encode($response, JSON_PRETTY_PRINT);

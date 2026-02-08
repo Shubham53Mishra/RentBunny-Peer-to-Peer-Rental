@@ -58,8 +58,8 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') {
     exit;
 }
 
-// Required fields for treadmill ad - same as other product APIs
-$required_fields = ['brand', 'product_type', 'price_per_month', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'image_url', 'security_deposit'];
+// Required fields for treadmill ad
+$required_fields = ['brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
 
 // Get JSON data
 $input = json_decode(file_get_contents('php://input'), true);
@@ -96,28 +96,6 @@ $latitude = floatval($input['latitude']);
 $longitude = floatval($input['longitude']);
 $city = mysqli_real_escape_string($conn, $input['city']);
 
-// Handle image_url array
-$image_urls = '';
-if(isset($input['image_url']) && is_array($input['image_url'])) {
-    $validated_urls = array();
-    foreach($input['image_url'] as $url) {
-        if(filter_var($url, FILTER_VALIDATE_URL)) {
-            $validated_urls[] = mysqli_real_escape_string($conn, $url);
-        }
-    }
-    $image_urls = !empty($validated_urls) ? json_encode($validated_urls) : '';
-} else if(isset($input['image_url']) && is_string($input['image_url'])) {
-    if(filter_var($input['image_url'], FILTER_VALIDATE_URL)) {
-        $image_urls = json_encode([mysqli_real_escape_string($conn, $input['image_url'])]);
-    }
-}
-
-if(empty($image_urls)) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'image_url must be a valid URL or array of URLs']);
-    exit;
-}
-
 // Validate numeric values
 if($price_per_month <= 0) {
     http_response_code(400);
@@ -138,8 +116,8 @@ if($longitude < -180 || $longitude > 180) {
 $table_name = 'treadmill_adds';
 
 // Insert into database
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, city, latitude, longitude, image_url, brand, product_type, security_deposit, created_at, updated_at)
-               VALUES ('$user_id', '$ad_title', '$description', '$price_per_month', '$city', '$latitude', '$longitude', '$image_urls', '$brand', '$product_type', '$security_deposit', NOW(), NOW())";
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, city, latitude, longitude, brand, product_type, security_deposit, created_at, updated_at)
+               VALUES ('$user_id', '$ad_title', '$description', '$price_per_month', '$city', '$latitude', '$longitude', '$brand', '$product_type', '$security_deposit', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;
@@ -154,11 +132,11 @@ if($conn->query($insert_sql)) {
         'city' => $city,
         'latitude' => $latitude,
         'longitude' => $longitude,
-        'image_url' => $image_urls,
         'brand' => $brand,
         'product_type' => $product_type,
         'security_deposit' => $security_deposit,
-        'created_at' => date('Y-m-d H:i:s')
+        'created_at' => date('Y-m-d H:i:s'),
+        'note' => 'Upload images using image_upload.php endpoint'
     ];
     http_response_code(200);
 } else {
@@ -166,9 +144,6 @@ if($conn->query($insert_sql)) {
     $response['success'] = false;
     $response['message'] = 'Failed to post treadmill ad';
     $response['error'] = $conn->error;
-    $response['error_code'] = $conn->errno;
-    $response['debug_sql'] = $insert_sql;
-    $response['debug_input'] = $input;
 }
 
 echo json_encode($response, JSON_PRETTY_PRINT);
