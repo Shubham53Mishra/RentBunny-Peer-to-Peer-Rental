@@ -47,6 +47,7 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') {
 }
 
 // Check if files are uploaded
+// Supports both: image[0], image[1], image[2]... format
 if (!isset($_FILES['image']) || (is_array($_FILES['image']['name']) && empty($_FILES['image']['name'][0])) || (!is_array($_FILES['image']['name']) && empty($_FILES['image']['name']))) {
     http_response_code(400);
     $debug_info = [
@@ -57,7 +58,7 @@ if (!isset($_FILES['image']) || (is_array($_FILES['image']['name']) && empty($_F
         $debug_info['image_name'] = $_FILES['image']['name'];
         $debug_info['image_name_is_array'] = is_array($_FILES['image']['name']);
     }
-    echo json_encode(['success' => false, 'message' => 'No image file provided. Use "image" field with multiple file inputs in form-data.', 'debug' => $debug_info]);
+    echo json_encode(['success' => false, 'message' => 'No image file(s) provided. In Postman: Select file input, CTRL/CMD + Click multiple files to upload together', 'debug' => $debug_info]);
     exit;
 }
 
@@ -120,9 +121,10 @@ if (!is_dir($upload_dir)) {
 $uploaded_files = [];
 $file_count = is_array($_FILES['image']['name']) ? count($_FILES['image']['name']) : 1;
 
-// Handle both single and multiple file uploads
+// Handle file uploads - supports both single and multiple files
+// When multiple files are uploaded with same field name, PHP automatically creates an array
 if(!is_array($_FILES['image']['name'])) {
-    // Single file upload - convert to array
+    // Single file uploaded - convert to array format for uniform processing
     $_FILES['image']['name'] = array($_FILES['image']['name']);
     $_FILES['image']['tmp_name'] = array($_FILES['image']['tmp_name']);
     $_FILES['image']['error'] = array($_FILES['image']['error']);

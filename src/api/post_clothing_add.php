@@ -127,14 +127,12 @@ if(isset($input['image_urls']) && is_array($input['image_urls'])) {
 
 // Map to existing table columns
 $title = "$product_type - $brand";
-$price = $price_per_month;
-$condition = 'good';
 
 $table_name = 'clothing_adds';
 
 // Insert into database using existing table columns
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, image_url, brand, created_at, updated_at)
-               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', '$image_urls', '$brand', NOW(), NOW())";
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, product_type, city, latitude, longitude, image_url, brand, security_deposit, created_at, updated_at)
+               VALUES ('$user_id', '$title', '$description', '$price_per_month', '$product_type', '$city', '$latitude', '$longitude', '$image_urls', '$brand', '$security_deposit', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;
