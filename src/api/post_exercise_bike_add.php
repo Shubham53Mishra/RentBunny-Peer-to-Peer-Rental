@@ -97,7 +97,7 @@ $latitude = floatval($input['latitude']);
 $longitude = floatval($input['longitude']);
 $city = mysqli_real_escape_string($conn, $input['city']);
 
-// Validate numeric values
+// Validate numeric values to like 
 if($price_per_month <= 0) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'price_per_month must be greater than 0']);
