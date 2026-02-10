@@ -107,6 +107,7 @@ if($max_user_weight <= 0) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'max_user_weight must be greater than 0']);
     exit;
+    
 }
 if($latitude < -90 || $latitude > 90) {
     http_response_code(400);
