@@ -33,15 +33,15 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
         exit;
     }
     
-    // Query from camera_adds table and add product_type
-    $sql = "SELECT id, user_id, title, description, price as price_per_month, `condition`, city, latitude, longitude, image_url, brand, product_type, security_deposit, created_at, updated_at FROM camera_adds ORDER BY created_at DESC";
+    // Query from cajon_adds table and add product_type
+    $sql = "SELECT id, user_id, title, description, price as price_per_month, `condition`, city, latitude, longitude, image_url, brand, product_type, security_deposit, created_at, updated_at FROM cajon_adds ORDER BY created_at DESC";
     $result = $conn->query($sql);
     
     if($result) {
         $all_products = array();
         if($result->num_rows > 0) {
             while($row = $result->fetch_assoc()) {
-                $row['product_type'] = 'camera';
+                $row['product_type'] = 'cajon';
                 $all_products[] = $row;
             }
         }
@@ -50,7 +50,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
         $response['data'] = $all_products;
     } else {
         $response['success'] = false;
-        $response['message'] = 'Failed to fetch cameras: ' . $conn->error;
+        $response['message'] = 'Failed to fetch cajons: ' . $conn->error;
     }
 } else {
     $response['success'] = false;

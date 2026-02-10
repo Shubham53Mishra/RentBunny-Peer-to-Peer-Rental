@@ -59,7 +59,7 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') {
 }
 
 // Required fields for Cajon ad
-$required_fields = ['brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'city'];
+$required_fields = ['brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'city', 'latitude', 'longitude'];
 
 // Get JSON data
 $input = json_decode(file_get_contents('php://input'), true);
@@ -91,9 +91,31 @@ $price_per_month = floatval($input['price_per_month']);
 $security_deposit = floatval($input['security_deposit']);
 $ad_title = mysqli_real_escape_string($conn, $input['ad_title']);
 $description = mysqli_real_escape_string($conn, $input['description']);
-$latitude = isset($input['latitude']) ? floatval($input['latitude']) : 0;
-$longitude = isset($input['longitude']) ? floatval($input['longitude']) : 0;
+$latitude = floatval($input['latitude']);
+$longitude = floatval($input['longitude']);
 $city = mysqli_real_escape_string($conn, $input['city']);
+
+// Validate numeric values
+if($price_per_month <= 0) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'price_per_month must be greater than 0']);
+    exit;
+}
+if($latitude < -90 || $latitude > 90) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid latitude value']);
+    exit;
+}
+if($longitude < -180 || $longitude > 180) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid longitude value']);
+    exit;
+}
+if($security_deposit < 0) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'security_deposit must be greater than or equal to 0']);
+    exit;
+}
 
 // Map to existing table columns
 $title = "$brand $product_type - $ad_title";
@@ -103,8 +125,8 @@ $condition = 'good';
 $table_name = 'cajon_adds';
 
 // Insert into database using existing table columns
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, image_url, brand, product_type, created_at, updated_at)
-               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', '', '$brand', '$product_type', NOW(), NOW())";
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, brand, product_type, security_deposit, created_at, updated_at)
+               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', '$brand', '$product_type', '$security_deposit', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;

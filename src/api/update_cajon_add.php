@@ -106,14 +106,14 @@ $update_fields = [];
 $updates = [];
 
 // List of allowed fields to update
-$allowed_fields = ['title', 'description', 'price', 'condition', 'city', 'latitude', 'longitude', 'brand', 'product_type'];
+$allowed_fields = ['title', 'description', 'price', 'condition', 'city', 'latitude', 'longitude', 'brand', 'product_type', 'security_deposit'];
 
 foreach($allowed_fields as $field) {
     if(isset($input[$field])) {
         $value = $input[$field];
         
         // Type-specific sanitization
-        if(in_array($field, ['price', 'latitude', 'longitude'])) {
+        if(in_array($field, ['price', 'latitude', 'longitude', 'security_deposit'])) {
             $value = floatval($value);
         } else {
             $value = mysqli_real_escape_string($conn, $value);
@@ -133,6 +133,11 @@ foreach($allowed_fields as $field) {
         if($field === 'longitude' && ($value < -180 || $value > 180)) {
             http_response_code(400);
             echo json_encode(['success' => false, 'message' => 'Invalid longitude value']);
+            exit;
+        }
+        if($field === 'security_deposit' && $value < 0) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'security_deposit must be greater than or equal to 0']);
             exit;
         }
         
