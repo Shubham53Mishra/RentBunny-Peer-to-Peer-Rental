@@ -106,7 +106,7 @@ $update_fields = [];
 $updates = [];
 
 // List of allowed fields to update
-$allowed_fields = ['title', 'description', 'price_per_month', 'security_deposit', 'city', 'latitude', 'longitude', 'brand'];
+$allowed_fields = ['title', 'description', 'price_per_month', 'security_deposit', 'city', 'latitude', 'longitude', 'brand', 'product_type'];
 
 foreach($allowed_fields as $field) {
     if(isset($input[$field])) {
