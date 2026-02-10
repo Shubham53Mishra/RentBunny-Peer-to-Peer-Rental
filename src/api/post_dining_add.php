@@ -59,7 +59,7 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') {
 }
 
 // Required fields for dining table ad
-$required_fields = ['height', 'length', 'width', 'primary_material', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
+$required_fields = ['height', 'length', 'width', 'primary_material', 'dining_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
 
 // Get JSON data
 $input = json_decode(file_get_contents('php://input'), true);
@@ -90,7 +90,7 @@ $height = floatval($input['height']);
 $length = floatval($input['length']);
 $width = floatval($input['width']);
 $primary_material = mysqli_real_escape_string($conn, $input['primary_material']);
-$product_type = mysqli_real_escape_string($conn, $input['product_type']);
+$dining_type = mysqli_real_escape_string($conn, $input['dining_type']);
 $price_per_month = floatval($input['price_per_month']);
 $security_deposit = floatval($input['security_deposit']);
 $ad_title = mysqli_real_escape_string($conn, $input['ad_title']);
@@ -122,7 +122,7 @@ if($longitude < -180 || $longitude > 180) {
 }
 
 // Map to existing table columns
-$title = "$product_type - $primary_material ($length x $width x $height)";
+$title = "$dining_type - $primary_material ($length x $width x $height)";
 $price = $price_per_month;
 
 $table_name = 'dining_adds';
@@ -139,7 +139,7 @@ if($conn->query($insert_sql)) {
         'add_id' => $add_id,
         'table' => $table_name,
         'user_id' => $user_id,
-        'product_type' => $product_type,
+        'dining_type' => $dining_type,
         'primary_material' => $primary_material,
         'height' => $height,
         'length' => $length,
