@@ -152,7 +152,7 @@ $title = "$product_type - $brand ($model)";
 $table_name = 'chimney_adds';
 
 // Insert into database using existing table columns
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price_per_month, security_deposit, city, latitude, longitude, brand, created_at, updated_at)
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, security_deposit, city, latitude, longitude, brand, created_at, updated_at)
                VALUES ('$user_id', '$title', '$description', '$price_per_month', '$security_deposit', '$city', '$latitude', '$longitude', '$brand', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {

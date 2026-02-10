@@ -144,7 +144,7 @@ $title = "$brand $product_type - $ad_title";
 $table_name = 'violin_adds';
 
 // Insert into database using existing table columns
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price_per_month, security_deposit, city, latitude, longitude, brand, product_type, created_at, updated_at)
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, security_deposit, city, latitude, longitude, brand, product_type, created_at, updated_at)
                VALUES ('$user_id', '$title', '$description', '$price_per_month', '$security_deposit', '$city', '$latitude', '$longitude', '$brand', '$product_type', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {

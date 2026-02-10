@@ -112,19 +112,6 @@ foreach($allowed_fields as $field) {
     if(isset($input[$field])) {
         $value = $input[$field];
         
-        // Special handling for image_urls array
-        if($field === 'image_url' && is_array($value)) {
-            $validated_urls = array();
-            foreach($value as $url) {
-                if(filter_var($url, FILTER_VALIDATE_URL)) {
-                    $validated_urls[] = mysqli_real_escape_string($conn, $url);
-                }
-            }
-            $image_urls = !empty($validated_urls) ? json_encode($validated_urls) : '';
-            $updates[] = "`image_url` = '$image_urls'";
-            continue;
-        }
-        
         // Type-specific sanitization
         if(in_array($field, ['price_per_month', 'security_deposit', 'latitude', 'longitude'])) {
             $value = floatval($value);
@@ -154,7 +141,9 @@ foreach($allowed_fields as $field) {
             exit;
         }
         
-        $updates[] = "`$field` = '$value'";
+        // Map price_per_month to price column in database
+        $col_name = ($field === 'price_per_month') ? 'price' : $field;
+        $updates[] = "`$col_name` = '$value'";
         $update_fields[$field] = $value;
     }
 }
@@ -178,18 +167,8 @@ if($conn->query($update_sql)) {
     $response['data'] = [
         'add_id' => $add_id,
         'table' => $table_name,
-        'created_at' => date('Y-m-d H:i:s'),
-        'user_id' => $user_id,
-        'brand' => $brand,
-        'product_type' => $product_type,
-        'ad_title' => $ad_title,
-        'description' => $description,
-        'price_per_month' => $price_per_month,
-        'security_deposit' => $security_deposit,
-        'city' => $city,
-        'latitude' => $latitude,
-        'longitude' => $longitude,
-        'image_urls' => $validated_urls
+        'updated_at' => date('Y-m-d H:i:s'),
+        'updated_fields' => $update_fields
     ];
     http_response_code(200);
 } else {
