@@ -33,32 +33,74 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
         exit;
     }
     
-    $cycle_tables = array('road_bike_adds', 'cruiser_adds', 'fixed_gear_adds', 'mountain_bike_adds', 'bmx_adds', 'touring_bike_adds', 'folding_bike_adds', 'electric_bike_adds', 'cyclocross_bike_adds', 'hybrid_bike_adds');
+    // Check if cycle_adds table exists
+    $check_table_sql = "SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'cycle_adds' LIMIT 1";
+    $table_exists = $conn->query($check_table_sql);
     
-    // Query from the main cycle_adds table where POST API saves data
-    $sql = "SELECT * FROM cycle_adds ORDER BY created_at DESC";
-    $result = $conn->query($sql);
+    $grouped_products = array(
+        'Road Bike' => array(),
+        'Cruiser' => array(),
+        'Fixed Gear Bike' => array(),
+        'Mountain Bike' => array(),
+        'BMX' => array(),
+        'Touring Bike' => array(),
+        'Folding Bike' => array(),
+        'Electrical Bike' => array(),
+        'Cyclocross Bike' => array(),
+        'Hybrid Bike' => array(),
+        'Others' => array()
+    );
     
-    $all_products = array();
-    if($result && $result->num_rows > 0) {
-        while($row = $result->fetch_assoc()) {
-            // Rename 'price' to 'price_per_month' for consistency with POST response
-            if(isset($row['price'])) {
-                $row['price_per_month'] = $row['price'];
-                unset($row['price']);
+    if($table_exists && $table_exists->num_rows > 0) {
+        $sql = "SELECT * FROM cycle_adds ORDER BY created_at DESC";
+        $result = $conn->query($sql);
+        
+        if($result && $result->num_rows > 0) {
+            while($row = $result->fetch_assoc()) {
+                // Determine category based on product_type or title
+                $category = 'Others'; // Default category
+                
+                if(!empty($row['product_type'])) {
+                    // Use product_type if available
+                    $category = $row['product_type'];
+                } else {
+                    // Parse from title if product_type is empty
+                    $title = $row['title'];
+                    if(stripos($title, 'Road Bike') !== false) {
+                        $category = 'Road Bike';
+                    } elseif(stripos($title, 'Cruiser') !== false) {
+                        $category = 'Cruiser';
+                    } elseif(stripos($title, 'Fixed Gear') !== false) {
+                        $category = 'Fixed Gear Bike';
+                    } elseif(stripos($title, 'Mountain Bike') !== false) {
+                        $category = 'Mountain Bike';
+                    } elseif(stripos($title, 'BMX') !== false) {
+                        $category = 'BMX';
+                    } elseif(stripos($title, 'Touring Bike') !== false) {
+                        $category = 'Touring Bike';
+                    } elseif(stripos($title, 'Folding Bike') !== false) {
+                        $category = 'Folding Bike';
+                    } elseif(stripos($title, 'Electrical Bike') !== false || stripos($title, 'Electric Bike') !== false) {
+                        $category = 'Electrical Bike';
+                    } elseif(stripos($title, 'Cyclocross') !== false) {
+                        $category = 'Cyclocross Bike';
+                    } elseif(stripos($title, 'Hybrid Bike') !== false) {
+                        $category = 'Hybrid Bike';
+                    }
+                }
+                
+                // Initialize category if not exists
+                if(!isset($grouped_products[$category])) {
+                    $grouped_products[$category] = array();
+                }
+                
+                $grouped_products[$category][] = $row;
             }
-            $all_products[] = $row;
         }
     }
     
-    // Sort all products by created_at in descending order
-    usort($all_products, function($a, $b) {
-        return strtotime($b['created_at']) - strtotime($a['created_at']);
-    });
-    
     $response['success'] = true;
-    $response['count'] = count($all_products);
-    $response['data'] = $all_products;
+    $response['data'] = $grouped_products;
 } else {
     $response['success'] = false;
     $response['message'] = 'Only GET/POST method allowed';
