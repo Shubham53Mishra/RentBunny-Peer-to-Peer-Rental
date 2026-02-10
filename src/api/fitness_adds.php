@@ -36,7 +36,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
     }
     
     $fitness_tables = array('massager_adds', 'cross_trainer_adds', 'excercise_bike_adds');
-    $all_products = array();
+    $grouped_products = array();
     
     foreach($fitness_tables as $table) {
         $table_name = mysqli_real_escape_string($conn, $table);
@@ -44,9 +44,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
         $table_exists = $conn->query($check_table_sql);
         
         if($table_exists && $table_exists->num_rows > 0) {
-            // Select only necessary fields - use COALESCE for optional fields
-            $sql = "SELECT id, user_id, title, description, price, city, latitude, longitude, image_url, brand, product_type, COALESCE(security_deposit, 0) as security_deposit, created_at, updated_at FROM " . $table_name . " ORDER BY created_at DESC";
+            $sql = "SELECT * FROM " . $table_name . " ORDER BY created_at DESC";
             $result = $conn->query($sql);
+            
             if(!$result) {
                 $response['success'] = false;
                 $response['message'] = 'Database query error for ' . $table;
@@ -54,46 +54,24 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
                 echo json_encode($response);
                 exit;
             }
+            
+            $table_products = array();
             if($result && $result->num_rows > 0) {
                 while($row = $result->fetch_assoc()) {
-                    // Parse image_url JSON array to image_urls
-                    $image_urls = array();
-                    if(!empty($row['image_url'])) {
-                        $decoded = json_decode($row['image_url'], true);
-                        $image_urls = is_array($decoded) ? $decoded : [$row['image_url']];
-                    }
-                    
-                    // Format response with expected field names
-                    $formatted_row = [
-                        'id' => $row['id'],
-                        'user_id' => $row['user_id'],
-                        'ad_title' => $row['title'],
-                        'description' => $row['description'],
-                        'price_per_month' => floatval($row['price']),
-                        'city' => $row['city'],
-                        'latitude' => floatval($row['latitude']),
-                        'longitude' => floatval($row['longitude']),
-                        'image_urls' => $image_urls,
-                        'brand' => $row['brand'],
-                        'product_type' => $row['product_type'],
-                        'security_deposit' => floatval($row['security_deposit']),
-                        'created_at' => $row['created_at'],
-                        'updated_at' => $row['updated_at']
-                    ];
-                    $all_products[] = $formatted_row;
+                    $table_products[] = $row;
                 }
             }
+            
+            // Add table data to grouped products (empty array bhi add karenge)
+            $grouped_products[$table] = $table_products;
+        } else {
+            // Table exist nahi karti to empty array
+            $grouped_products[$table] = array();
         }
     }
     
-    // Sort all products by created_at in descending order
-    usort($all_products, function($a, $b) {
-        return strtotime($b['created_at']) - strtotime($a['created_at']);
-    });
-    
     $response['success'] = true;
-    $response['count'] = count($all_products);
-    $response['data'] = $all_products;
+    $response['data'] = $grouped_products;
 } else {
     $response['success'] = false;
     $response['message'] = 'Only GET/POST method allowed';

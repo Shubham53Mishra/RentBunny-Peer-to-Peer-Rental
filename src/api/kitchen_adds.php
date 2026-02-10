@@ -45,6 +45,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
             $sql = "SELECT * FROM " . $table_name . " ORDER BY created_at DESC";
             $result = $conn->query($sql);
             if($result && $result->num_rows > 0) {
+                $products = array();
                 while($row = $result->fetch_assoc()) {
                     // Transform row to match standardized format
                     $product = [
@@ -76,19 +77,17 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
                         $product['updated_at'] = $row['updated_at'];
                     }
                     
-                    $all_products[] = $product;
+                    $products[] = $product;
                 }
+                
+                // Group products by table key (remove _adds suffix)
+                $key = str_replace('_adds', '', $table);
+                $all_products[$key] = $products;
             }
         }
     }
     
-    // Sort all products by created_at in descending order
-    usort($all_products, function($a, $b) {
-        return strtotime($b['created_at']) - strtotime($a['created_at']);
-    });
-    
     $response['success'] = true;
-    $response['count'] = count($all_products);
     $response['data'] = $all_products;
 } else {
     $response['success'] = false;

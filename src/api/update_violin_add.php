@@ -141,7 +141,9 @@ foreach($allowed_fields as $field) {
             exit;
         }
         
-        $updates[] = "`$field` = '$value'";
+        // Map price_per_month to price column in database
+        $col_name = ($field === 'price_per_month') ? 'price' : $field;
+        $updates[] = "`$col_name` = '$value'";
         $update_fields[$field] = $value;
     }
 }
