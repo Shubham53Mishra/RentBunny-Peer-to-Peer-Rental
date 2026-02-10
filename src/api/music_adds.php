@@ -42,7 +42,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
         $table_exists = $conn->query($check_table_sql);
         
         if($table_exists && $table_exists->num_rows > 0) {
-            $sql = "SELECT * FROM " . $table_name . " ORDER BY created_at DESC";
+            $sql = "SELECT id, user_id, title, description, price as price_per_month, `condition`, city, latitude, longitude, image_url, brand, product_type, security_deposit, created_at, updated_at FROM " . $table_name . " ORDER BY created_at DESC";
             $result = $conn->query($sql);
             
             $table_products = array();
