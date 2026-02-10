@@ -59,7 +59,7 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') {
 }
 
 // Required fields for bed ad
-$required_fields = ['brand', 'frame_material', 'storage_included', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
+$required_fields = ['bed_size', 'frame_material', 'storage_included', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
 
 // Get JSON data
 $input = json_decode(file_get_contents('php://input'), true);
@@ -86,10 +86,9 @@ foreach($required_fields as $field) {
 }
 
 // Sanitize input and map to existing table columns
-$brand = mysqli_real_escape_string($conn, $input['brand']);
+$bed_size = mysqli_real_escape_string($conn, $input['bed_size']);
 $frame_material = mysqli_real_escape_string($conn, $input['frame_material']);
 $storage_included = intval($input['storage_included']); // 0 or 1
-$product_type = mysqli_real_escape_string($conn, $input['product_type']);
 $price_per_month = floatval($input['price_per_month']);
 $security_deposit = floatval($input['security_deposit']);
 $ad_title = mysqli_real_escape_string($conn, $input['ad_title']);
@@ -116,15 +115,14 @@ if($longitude < -180 || $longitude > 180) {
 }
 
 // Map to existing table columns
-$title = "$product_type - $frame_material" . ($storage_included ? ' (With Storage)' : '');
+$title = "Bed - $bed_size - $frame_material" . ($storage_included ? ' (With Storage)' : '');
 $price = $price_per_month;
-$condition = 'good';
 
 $table_name = 'bed_adds';
 
 // Insert into database using existing table columns
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, brand, security_deposit, created_at, updated_at)
-               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', '$brand', '$security_deposit', NOW(), NOW())";
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, city, latitude, longitude, frame_material, storage_included, security_deposit, created_at, updated_at)
+               VALUES ('$user_id', '$title', '$description', '$price', '$city', '$latitude', '$longitude', '$frame_material', '$storage_included', '$security_deposit', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;
@@ -135,7 +133,7 @@ if($conn->query($insert_sql)) {
         'table' => $table_name,
         'created_at' => date('Y-m-d H:i:s'),
         'user_id' => $user_id,
-        'product_type' => $product_type,
+        'bed_size' => $bed_size,
         'frame_material' => $frame_material,
         'storage_included' => $storage_included,
         'price_per_month' => $price_per_month,
