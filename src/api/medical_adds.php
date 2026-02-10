@@ -34,7 +34,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
     }
     
     $medical_tables = array('crutches_adds', 'wheelchair_adds');
-    $all_products = array();
+    $grouped_products = array();
     
     foreach($medical_tables as $table) {
         $table_name = mysqli_real_escape_string($conn, $table);
@@ -42,28 +42,26 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
         $table_exists = $conn->query($check_table_sql);
         
         if($table_exists && $table_exists->num_rows > 0) {
-            // Alias 'price' column as 'price_per_month' in response
-            $sql = "SELECT *, price as price_per_month FROM " . $table_name . " ORDER BY created_at DESC";
+            $sql = "SELECT * FROM " . $table_name . " ORDER BY created_at DESC";
             $result = $conn->query($sql);
+            
+            $table_products = array();
             if($result && $result->num_rows > 0) {
-                // Extract product type from table name (remove '_adds' suffix)
-                $product_type = str_replace('_adds', '', $table);
                 while($row = $result->fetch_assoc()) {
-                    $row['product_type'] = $product_type;
-                    $all_products[] = $row;
+                    $table_products[] = $row;
                 }
             }
+            
+            // Add table data to grouped products (empty array bhi add karenge)
+            $grouped_products[$table] = $table_products;
+        } else {
+            // Table exist nahi karti to empty array
+            $grouped_products[$table] = array();
         }
     }
     
-    // Sort all products by created_at in descending order
-    usort($all_products, function($a, $b) {
-        return strtotime($b['created_at']) - strtotime($a['created_at']);
-    });
-    
     $response['success'] = true;
-    $response['count'] = count($all_products);
-    $response['data'] = $all_products;
+    $response['data'] = $grouped_products;
 } else {
     $response['success'] = false;
     $response['message'] = 'Only GET/POST method allowed';
