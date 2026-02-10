@@ -106,24 +106,11 @@ $update_fields = [];
 $updates = [];
 
 // List of allowed fields to update
-$allowed_fields = ['title', 'description', 'price_per_month', 'security_deposit', 'city', 'latitude', 'longitude', 'image_url', 'brand'];
+$allowed_fields = ['title', 'description', 'price_per_month', 'security_deposit', 'city', 'latitude', 'longitude', 'brand', 'product_type'];
 
 foreach($allowed_fields as $field) {
     if(isset($input[$field])) {
         $value = $input[$field];
-        
-        // Special handling for image_urls array
-        if($field === 'image_url' && is_array($value)) {
-            $validated_urls = array();
-            foreach($value as $url) {
-                if(filter_var($url, FILTER_VALIDATE_URL)) {
-                    $validated_urls[] = mysqli_real_escape_string($conn, $url);
-                }
-            }
-            $image_urls = !empty($validated_urls) ? json_encode($validated_urls) : '';
-            $updates[] = "`image_url` = '$image_urls'";
-            continue;
-        }
         
         // Type-specific sanitization
         if(in_array($field, ['price_per_month', 'security_deposit', 'latitude', 'longitude'])) {
@@ -174,24 +161,22 @@ $update_sql = "UPDATE $table_name SET " . implode(', ', $updates) . " WHERE id =
 
 if($conn->query($update_sql)) {
     $response['success'] = true;
-    $response['message'] = 'Harmonium_adds updated successfully';
+    $response['message'] = 'Harmonium ad updated successfully';
     $response['data'] = [
         'add_id' => $add_id,
         'table' => $table_name,
         'updated_at' => date('Y-m-d H:i:s'),
         'user_id' => $user_id,
         'updated_fields' => array_keys($update_fields),
-        'field_values' => $update_fields
+        'field_values' => $update_fields,
+        'note' => 'To update images, use image_upload.php endpoint'
     ];
     http_response_code(200);
 } else {
     http_response_code(500);
     $response['success'] = false;
-    $response['message'] = 'Failed to update ' . $table_name;
+    $response['message'] = 'Failed to update harmonium ad';
     $response['error'] = $conn->error;
-    $response['error_code'] = $conn->errno;
-    $response['debug_sql'] = $update_sql;
-    $response['debug_input'] = $input;
 }
 
 echo json_encode($response, JSON_PRETTY_PRINT);
