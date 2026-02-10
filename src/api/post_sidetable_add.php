@@ -59,7 +59,7 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') {
 }
 
 // Required fields for side table ad
-$required_fields = ['brand', 'height', 'length', 'width', 'primary_material', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
+$required_fields = ['height', 'length', 'width', 'primary_material', 'sidetable_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
 
 // Get JSON data
 $input = json_decode(file_get_contents('php://input'), true);
@@ -86,12 +86,11 @@ foreach($required_fields as $field) {
 }
 
 // Sanitize input and map to existing table columns
-$brand = mysqli_real_escape_string($conn, $input['brand']);
 $height = floatval($input['height']);
 $length = floatval($input['length']);
 $width = floatval($input['width']);
 $primary_material = mysqli_real_escape_string($conn, $input['primary_material']);
-$product_type = mysqli_real_escape_string($conn, $input['product_type']);
+$sidetable_type = mysqli_real_escape_string($conn, $input['sidetable_type']);
 $price_per_month = floatval($input['price_per_month']);
 $security_deposit = floatval($input['security_deposit']);
 $ad_title = mysqli_real_escape_string($conn, $input['ad_title']);
@@ -123,15 +122,14 @@ if($longitude < -180 || $longitude > 180) {
 }
 
 // Map to existing table columns
-$title = "$product_type - $primary_material ($length x $width x $height)";
+$title = "$sidetable_type - $primary_material ($length x $width x $height)";
 $price = $price_per_month;
-$condition = 'good';
 
 $table_name = 'sidetable_adds';
 
 // Insert into database using existing table columns
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, image_url, brand, created_at, updated_at)
-               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', '', '$brand', NOW(), NOW())";
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, city, latitude, longitude, created_at, updated_at)
+               VALUES ('$user_id', '$title', '$description', '$price', '$city', '$latitude', '$longitude', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;
@@ -140,15 +138,15 @@ if($conn->query($insert_sql)) {
     $response['data'] = [
         'add_id' => $add_id,
         'table' => $table_name,
-        'created_at' => date('Y-m-d H:i:s'),
         'user_id' => $user_id,
-        'product_type' => $product_type,
+        'sidetable_type' => $sidetable_type,
         'primary_material' => $primary_material,
         'height' => $height,
         'length' => $length,
         'width' => $width,
         'price_per_month' => $price_per_month,
-        'security_deposit' => $security_deposit
+        'security_deposit' => $security_deposit,
+        'created_at' => date('Y-m-d H:i:s')
     ];
     http_response_code(200);
 } else {
