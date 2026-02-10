@@ -106,7 +106,7 @@ $update_fields = [];
 $updates = [];
 
 // List of required fields to update - same as POST required fields
-$required_fields = ['brand', 'model', 'product_type', 'price_per_month', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'image_url', 'security_deposit'];
+$required_fields = ['brand', 'model', 'product_type', 'price_per_month', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'security_deposit'];
 
 // Check if all required fields are provided
 $missing_fields = [];
@@ -131,20 +131,6 @@ foreach($required_fields as $field) {
             $db_field = 'price';
         } elseif($field === 'ad_title') {
             $db_field = 'title';
-        }
-        
-        // Special handling for image_url array
-        if($field === 'image_url' && is_array($value)) {
-            $validated_urls = array();
-            foreach($value as $url) {
-                if(filter_var($url, FILTER_VALIDATE_URL)) {
-                    $validated_urls[] = mysqli_real_escape_string($conn, $url);
-                }
-            }
-            $image_urls = !empty($validated_urls) ? json_encode($validated_urls) : '';
-            $updates[] = "`image_url` = '$image_urls'";
-            $update_fields[$field] = $image_urls;
-            continue;
         }
         
         // Type-specific sanitization
@@ -173,11 +159,6 @@ foreach($required_fields as $field) {
         if($field === 'security_deposit' && $value < 0) {
             http_response_code(400);
             echo json_encode(['success' => false, 'message' => 'security_deposit must be greater than or equal to 0']);
-            exit;
-        }
-        if($field === 'image_url' && empty($value)) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'image_url cannot be empty']);
             exit;
         }
         

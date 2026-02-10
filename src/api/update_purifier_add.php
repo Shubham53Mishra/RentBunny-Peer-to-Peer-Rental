@@ -101,89 +101,91 @@ if($ad_row['user_id'] != $user_id) {
     exit;
 }
 
-// Build update query with required fields - same as POST
+// Build update query with only provided fields
 $update_fields = [];
 $updates = [];
 
-// List of required fields to update
-$required_fields = ['purification_technology', 'capacity', 'brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
+// List of allowed fields to update
+$allowed_fields = ['purification_technology', 'capacity', 'brand', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
 
-// Check if all required fields are provided
-$missing_fields = [];
-foreach($required_fields as $field) {
-    if(!isset($input[$field]) || (is_string($input[$field]) && empty($input[$field]))) {
-        $missing_fields[] = $field;
+// Check which fields are provided
+foreach($allowed_fields as $field) {
+    if(isset($input[$field])) {
+        $update_fields[$field] = $input[$field];
     }
 }
 
-if(!empty($missing_fields)) {
+// If no fields provided, return error
+if(empty($update_fields)) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Missing required fields', 'missing_fields' => $missing_fields, 'received_fields' => array_keys($input)]);
+    echo json_encode(['success' => false, 'message' => 'No valid fields provided to update', 'allowed_fields' => $allowed_fields]);
     exit;
 }
 
-// Sanitize and validate input
-$purification_technology = mysqli_real_escape_string($conn, $input['purification_technology']);
-$capacity = mysqli_real_escape_string($conn, $input['capacity']);
-$brand = mysqli_real_escape_string($conn, $input['brand']);
-$product_type = mysqli_real_escape_string($conn, $input['product_type']);
-$price_per_month = floatval($input['price_per_month']);
-$security_deposit = floatval($input['security_deposit']);
-$ad_title = mysqli_real_escape_string($conn, $input['ad_title']);
-$description = mysqli_real_escape_string($conn, $input['description']);
-$latitude = floatval($input['latitude']);
-$longitude = floatval($input['longitude']);
-$city = mysqli_real_escape_string($conn, $input['city']);
+// Sanitize and validate input for fields that are provided
+$purification_technology = isset($input['purification_technology']) ? mysqli_real_escape_string($conn, $input['purification_technology']) : null;
+$capacity = isset($input['capacity']) ? mysqli_real_escape_string($conn, $input['capacity']) : null;
+$brand = isset($input['brand']) ? mysqli_real_escape_string($conn, $input['brand']) : null;
+$product_type = isset($input['product_type']) ? mysqli_real_escape_string($conn, $input['product_type']) : null;
+$price_per_month = isset($input['price_per_month']) ? floatval($input['price_per_month']) : null;
+$security_deposit = isset($input['security_deposit']) ? floatval($input['security_deposit']) : null;
+$ad_title = isset($input['ad_title']) ? mysqli_real_escape_string($conn, $input['ad_title']) : null;
+$description = isset($input['description']) ? mysqli_real_escape_string($conn, $input['description']) : null;
+$latitude = isset($input['latitude']) ? floatval($input['latitude']) : null;
+$longitude = isset($input['longitude']) ? floatval($input['longitude']) : null;
+$city = isset($input['city']) ? mysqli_real_escape_string($conn, $input['city']) : null;
 
-// Validate numeric values
-if($price_per_month <= 0) {
+// Validate numeric values if provided
+if($price_per_month !== null && $price_per_month <= 0) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'price_per_month must be greater than 0']);
     exit;
 }
-if($latitude < -90 || $latitude > 90) {
+if($latitude !== null && ($latitude < -90 || $latitude > 90)) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Invalid latitude value']);
     exit;
 }
-if($longitude < -180 || $longitude > 180) {
+if($longitude !== null && ($longitude < -180 || $longitude > 180)) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Invalid longitude value']);
     exit;
 }
-if($security_deposit < 0) {
+if($security_deposit !== null && $security_deposit < 0) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'security_deposit must be greater than or equal to 0']);
     exit;
 }
 
-// Build title from product_type and brand
-$title = "$product_type - $brand ($capacity)";
-
-// Build update query
-$updates[] = "`title` = '$title'";
-$updates[] = "`description` = '$description'";
-$updates[] = "`price` = '$price_per_month'";
-$updates[] = "`city` = '$city'";
-$updates[] = "`latitude` = '$latitude'";
-$updates[] = "`longitude` = '$longitude'";
-$updates[] = "`brand` = '$brand'";
-$updates[] = "`product_type` = '$product_type'";
-$updates[] = "`security_deposit` = '$security_deposit'";
-
-$update_fields = [
-    'purification_technology' => $purification_technology,
-    'capacity' => $capacity,
-    'brand' => $brand,
-    'product_type' => $product_type,
-    'price_per_month' => $price_per_month,
-    'security_deposit' => $security_deposit,
-    'ad_title' => $ad_title,
-    'description' => $description,
-    'latitude' => $latitude,
-    'longitude' => $longitude,
-    'city' => $city
-];
+// Build update query only for provided fields
+if($product_type !== null || $brand !== null || $capacity !== null) {
+    $title = ($product_type ?? 'Product') . " - " . ($brand ?? 'Brand') . " (" . ($capacity ?? '') . ")";
+    $updates[] = "`title` = '$title'";
+}
+if($description !== null) {
+    $updates[] = "`description` = '$description'";
+}
+if($price_per_month !== null) {
+    $updates[] = "`price` = '$price_per_month'";
+}
+if($city !== null) {
+    $updates[] = "`city` = '$city'";
+}
+if($latitude !== null) {
+    $updates[] = "`latitude` = '$latitude'";
+}
+if($longitude !== null) {
+    $updates[] = "`longitude` = '$longitude'";
+}
+if($brand !== null) {
+    $updates[] = "`brand` = '$brand'";
+}
+if($product_type !== null) {
+    $updates[] = "`product_type` = '$product_type'";
+}
+if($security_deposit !== null) {
+    $updates[] = "`security_deposit` = '$security_deposit'";
+}
 
 
 

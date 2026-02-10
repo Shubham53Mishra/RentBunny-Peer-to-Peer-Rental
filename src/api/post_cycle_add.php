@@ -59,7 +59,7 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') {
 }
 
 // Required fields for Cycle ad
-$required_fields = ['brand', 'model', 'product_type', 'price_per_month', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'image_url', 'security_deposit'];
+$required_fields = ['brand', 'model', 'product_type', 'price_per_month', 'ad_title', 'description', 'latitude', 'longitude', 'city', 'security_deposit'];
 
 // Get JSON data
 $input = json_decode(file_get_contents('php://input'), true);
@@ -97,22 +97,6 @@ $latitude = floatval($input['latitude']);
 $longitude = floatval($input['longitude']);
 $city = mysqli_real_escape_string($conn, $input['city']);
 
-// Optional fields
-$image_url = '';
-if(is_array($input['image_url'])) {
-    $validated_urls = array();
-    foreach($input['image_url'] as $url) {
-        if(filter_var($url, FILTER_VALIDATE_URL)) {
-            $validated_urls[] = mysqli_real_escape_string($conn, $url);
-        }
-    }
-    $image_url = !empty($validated_urls) ? json_encode($validated_urls) : '';
-} else {
-    if(filter_var($input['image_url'], FILTER_VALIDATE_URL) || $input['image_url'] != '') {
-        $image_url = mysqli_real_escape_string($conn, $input['image_url']);
-    }
-}
-
 $security_deposit = floatval($input['security_deposit']);
 
 // Validate location values
@@ -136,17 +120,12 @@ if($security_deposit < 0) {
     echo json_encode(['success' => false, 'message' => 'security_deposit must be greater than or equal to 0']);
     exit;
 }
-if(empty($image_url)) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'image_url is required']);
-    exit;
-}
 
 $table_name = 'cycle_adds';
 
 // Insert into database with all fields
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, city, latitude, longitude, image_url, brand, model, product_type, security_deposit, created_at, updated_at)
-               VALUES ('$user_id', '$title', '$description', '$price_per_month', '$city', '$latitude', '$longitude', '$image_url', '$brand', '$model', '$product_type', '$security_deposit', NOW(), NOW())";
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, city, latitude, longitude, brand, model, product_type, security_deposit, created_at, updated_at)
+               VALUES ('$user_id', '$title', '$description', '$price_per_month', '$city', '$latitude', '$longitude', '$brand', '$model', '$product_type', '$security_deposit', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;
@@ -161,7 +140,6 @@ if($conn->query($insert_sql)) {
         'city' => $city,
         'latitude' => $latitude,
         'longitude' => $longitude,
-        'image_url' => $image_url,
         'brand' => $brand,
         'model' => $model,
         'product_type' => $product_type,

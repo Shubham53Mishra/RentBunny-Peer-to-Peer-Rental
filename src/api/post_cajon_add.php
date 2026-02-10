@@ -95,19 +95,6 @@ $latitude = isset($input['latitude']) ? floatval($input['latitude']) : 0;
 $longitude = isset($input['longitude']) ? floatval($input['longitude']) : 0;
 $city = mysqli_real_escape_string($conn, $input['city']);
 
-
-// Handle multiple image URLs as JSON array
-$image_urls = '';
-if(isset($input['image_urls']) && is_array($input['image_urls'])) {
-    $validated_urls = array();
-    foreach($input['image_urls'] as $url) {
-        if(filter_var($url, FILTER_VALIDATE_URL)) {
-            $validated_urls[] = mysqli_real_escape_string($conn, $url);
-        }
-    }
-    $image_urls = !empty($validated_urls) ? json_encode($validated_urls) : '';
-}
-
 // Map to existing table columns
 $title = "$brand $product_type - $ad_title";
 $price = $price_per_month;
@@ -117,7 +104,7 @@ $table_name = 'cajon_adds';
 
 // Insert into database using existing table columns
 $insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, image_url, brand, product_type, created_at, updated_at)
-               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', '$image_urls', '$brand', '$product_type', NOW(), NOW())";
+               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', '', '$brand', '$product_type', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;

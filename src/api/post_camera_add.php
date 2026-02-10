@@ -114,19 +114,6 @@ if($longitude < -180 || $longitude > 180) {
     exit;
 }
 
-
-// Handle multiple image URLs as JSON array
-$image_urls = '';
-if(isset($input['image_urls']) && is_array($input['image_urls'])) {
-    $validated_urls = array();
-    foreach($input['image_urls'] as $url) {
-        if(filter_var($url, FILTER_VALIDATE_URL)) {
-            $validated_urls[] = mysqli_real_escape_string($conn, $url);
-        }
-    }
-    $image_urls = !empty($validated_urls) ? json_encode($validated_urls) : '';
-}
-
 // Map to existing table columns
 $title = "$product_type - $brand ($model)";
 $price = $price_per_month;
@@ -135,8 +122,8 @@ $condition = 'good';
 $table_name = 'camera_adds';
 
 // Insert into database using existing table columns
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, image_url, brand, created_at, updated_at)
-               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', '$image_urls', '$brand', NOW(), NOW())";
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, brand, product_type, security_deposit, created_at, updated_at)
+               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', '$brand', '$product_type', '$security_deposit', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;

@@ -106,24 +106,11 @@ $update_fields = [];
 $updates = [];
 
 // List of allowed fields to update
-$allowed_fields = ['title', 'description', 'price', 'condition', 'city', 'latitude', 'longitude', 'image_url', 'brand'];
+$allowed_fields = ['title', 'description', 'price', 'condition', 'city', 'latitude', 'longitude', 'brand'];
 
 foreach($allowed_fields as $field) {
     if(isset($input[$field])) {
         $value = $input[$field];
-        
-        // Special handling for image_urls array
-        if($field === 'image_url' && is_array($value)) {
-            $validated_urls = array();
-            foreach($value as $url) {
-                if(filter_var($url, FILTER_VALIDATE_URL)) {
-                    $validated_urls[] = mysqli_real_escape_string($conn, $url);
-                }
-            }
-            $image_urls = !empty($validated_urls) ? json_encode($validated_urls) : '';
-            $updates[] = "`image_url` = '$image_urls'";
-            continue;
-        }
         
         // Type-specific sanitization
         if(in_array($field, ['price', 'latitude', 'longitude'])) {
