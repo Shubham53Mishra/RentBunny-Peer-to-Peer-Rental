@@ -1,5 +1,7 @@
 <?php
 header('Content-Type: application/json');
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 require_once('../common/db.php');
 
 $response = array();
@@ -33,32 +35,23 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
         exit;
     }
     
-    $bike_tables = array('petrol_bike_adds', 'electric_bike_adds');
+    $table_name = mysqli_real_escape_string($conn, 'bike_adds');
+    
+    // Check if table exists
+    $check_table_sql = "SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '$table_name' LIMIT 1";
+    $table_exists = $conn->query($check_table_sql);
+    
     $all_products = array();
     
-    foreach($bike_tables as $table) {
-        $table_name = mysqli_real_escape_string($conn, $table);
-        $check_table_sql = "SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '$table_name' LIMIT 1";
-        $table_exists = $conn->query($check_table_sql);
-        
-        if($table_exists && $table_exists->num_rows > 0) {
-            $sql = "SELECT * FROM " . $table_name . " ORDER BY created_at DESC";
-            $result = $conn->query($sql);
-            if($result && $result->num_rows > 0) {
-                // Extract product type from table name (remove '_adds' suffix)
-                $product_type = str_replace('_adds', '', $table);
-                while($row = $result->fetch_assoc()) {
-                    $row['product_type'] = $product_type;
-                    $all_products[] = $row;
-                }
+    if($table_exists && $table_exists->num_rows > 0) {
+        $sql = "SELECT * FROM " . $table_name . " ORDER BY created_at DESC";
+        $result = $conn->query($sql);
+        if($result && $result->num_rows > 0) {
+            while($row = $result->fetch_assoc()) {
+                $all_products[] = $row;
             }
         }
     }
-    
-    // Sort all products by created_at in descending order
-    usort($all_products, function($a, $b) {
-        return strtotime($b['created_at']) - strtotime($a['created_at']);
-    });
     
     $response['success'] = true;
     $response['count'] = count($all_products);
