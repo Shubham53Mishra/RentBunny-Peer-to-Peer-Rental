@@ -1,6 +1,8 @@
 <?php
+ob_start();
 header('Content-Type: application/json');
 require_once('../common/db.php');
+ob_end_clean();
 
 $response = array();
 
@@ -46,33 +48,28 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $user_id = $user['id'];
     
     // Get POST data
-    $block_user = isset($_POST['block_user']) ? mysqli_real_escape_string($conn, $_POST['block_user']) : '';
+    $block_user_id = isset($_POST['user_id']) ? mysqli_real_escape_string($conn, $_POST['user_id']) : '';
     
     // Validate required field
-    if(empty($block_user)) {
+    if(empty($block_user_id)) {
         http_response_code(400);
         $response['success'] = false;
-        $response['message'] = 'block_user (mobile number) is required';
+        $response['message'] = 'user_id is required';
         echo json_encode($response);
         exit;
     }
     
     // Cannot block yourself
-    $self_check_sql = "SELECT mobile FROM users WHERE id = '$user_id'";
-    $self_result = $conn->query($self_check_sql);
-    if($self_result && $self_result->num_rows > 0) {
-        $self_user = $self_result->fetch_assoc();
-        if($self_user['mobile'] == $block_user) {
-            http_response_code(400);
-            $response['success'] = false;
-            $response['message'] = 'Cannot block yourself';
-            echo json_encode($response);
-            exit;
-        }
+    if($user_id == $block_user_id) {
+        http_response_code(400);
+        $response['success'] = false;
+        $response['message'] = 'Cannot block yourself';
+        echo json_encode($response);
+        exit;
     }
     
     // Check if already blocked
-    $check_sql = "SELECT id FROM blocked_users WHERE user_id = '$user_id' AND blocked_user_mobile = '$block_user'";
+    $check_sql = "SELECT id FROM blocked_users WHERE user_id = '$user_id' AND blocked_user_id = '$block_user_id'";
     $check_result = $conn->query($check_sql);
     
     if($check_result && $check_result->num_rows > 0) {
@@ -84,15 +81,15 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
     
     // Insert block
-    $insert_sql = "INSERT INTO blocked_users (user_id, blocked_user_mobile) 
-                   VALUES ('$user_id', '$block_user')";
+    $insert_sql = "INSERT INTO blocked_users (user_id, blocked_user_id) 
+                   VALUES ('$user_id', '$block_user_id')";
     
     if($conn->query($insert_sql) === TRUE) {
         $response['success'] = true;
         $response['message'] = 'User blocked successfully';
         $response['data'] = array(
             'user_id' => $user_id,
-            'blocked_user_mobile' => $block_user,
+            'blocked_user_id' => $block_user_id,
             'blocked_at' => date('Y-m-d H:i:s')
         );
         http_response_code(201);
@@ -108,5 +105,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 
 echo json_encode($response);
-$conn->close();
+if($conn) {
+    $conn->close();
+}
 ?>

@@ -66,10 +66,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         exit;
     }
     
-    // Trim and normalize status (case-insensitive)
-    $status = trim($status);
-    $status = ucfirst(strtolower($status));
-    
     // Validate status
     if(!in_array($status, array('Active', 'Closed'))) {
         http_response_code(400);
