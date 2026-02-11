@@ -64,17 +64,33 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     );
     
     foreach($ad_tables as $table => $category) {
-        // Check if status column exists in the table
+        // Check if status and image_url columns exist in the table
         $columns_query = "SHOW COLUMNS FROM $table LIKE 'status'";
         $columns_result = $conn->query($columns_query);
         $has_status = ($columns_result && $columns_result->num_rows > 0);
         
+        $image_query = "SHOW COLUMNS FROM $table LIKE 'image_url'";
+        $image_result = $conn->query($image_query);
+        $has_image_url = ($image_result && $image_result->num_rows > 0);
+        
         // Build query based on column availability
-        if($has_status) {
-            $query = "SELECT id, title, description, price, status, created_at FROM $table WHERE user_id = '$user_id' ORDER BY created_at DESC";
+        $select_fields = "id, title, description, price";
+        
+        if($has_image_url) {
+            $select_fields .= ", image_url";
         } else {
-            $query = "SELECT id, title, description, price, 'Active' as status, created_at FROM $table WHERE user_id = '$user_id' ORDER BY created_at DESC";
+            $select_fields .= ", NULL as image_url";
         }
+        
+        if($has_status) {
+            $select_fields .= ", status";
+        } else {
+            $select_fields .= ", 'Active' as status";
+        }
+        
+        $select_fields .= ", created_at";
+        
+        $query = "SELECT $select_fields FROM $table WHERE user_id = '$user_id' ORDER BY created_at DESC";
         
         $result = $conn->query($query);
         
