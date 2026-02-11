@@ -55,7 +55,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         'bed_adds',
         'sofa_adds',
         'dining_adds',
-        'sidedesk_adds',
+        'sidetable_adds',
         'treadmill_adds',
         'massager_adds',
         'excercise_bike_adds',

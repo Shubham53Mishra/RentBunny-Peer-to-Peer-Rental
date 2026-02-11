@@ -41,8 +41,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
     }
     
     // Furniture category tables
-    $furniture_tables = array('bed_adds', 'sidedesk_adds', 'sofa_adds', 'dining_adds');
-    $all_products = array();
+    $furniture_tables = array('bed_adds', 'sidetable_adds', 'sofa_adds', 'dining_adds');
+    $data = array();
     
     foreach($furniture_tables as $table) {
         $table_name = mysqli_real_escape_string($conn, $table);
@@ -58,24 +58,21 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'GET') 
             $result = $conn->query($sql);
             
             if($result && $result->num_rows > 0) {
-                // Extract product type from table name (remove '_adds' suffix)
-                $product_type = str_replace('_adds', '', $table);
+                $products = array();
                 while($row = $result->fetch_assoc()) {
-                    $row['product_type'] = $product_type;
-                    $all_products[] = $row;
+                    $products[] = $row;
                 }
+                $data[$table] = $products;
+            } else {
+                $data[$table] = array();
             }
+        } else {
+            $data[$table] = array();
         }
     }
     
-    // Sort all products by created_at in descending order
-    usort($all_products, function($a, $b) {
-        return strtotime($b['created_at']) - strtotime($a['created_at']);
-    });
-    
     $response['success'] = true;
-    $response['count'] = count($all_products);
-    $response['data'] = $all_products;
+    $response['data'] = $data;
     
 } else {
     $response['success'] = false;

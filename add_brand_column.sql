@@ -7,7 +7,7 @@ ALTER TABLE cycle_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
 ALTER TABLE bed_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
 ALTER TABLE sofa_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
 ALTER TABLE dining_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
-ALTER TABLE sidedesk_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE sidetable_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
 ALTER TABLE computer_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
 ALTER TABLE printer_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
 ALTER TABLE refrigerator_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;

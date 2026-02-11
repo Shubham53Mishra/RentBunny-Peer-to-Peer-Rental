@@ -16,7 +16,7 @@ $tables = [
     // Vehicles
     'bike_adds', 'car_adds', 'cycle_adds',
     // Furniture
-    'bed_adds', 'sofa_adds', 'dining_adds', 'sidedesk_adds',
+    'bed_adds', 'sofa_adds', 'dining_adds', 'sidetable_adds',
     // Electronics
     'ac_adds', 'computer_adds', 'printer_adds', 'refrigerator_adds', 
     'tv_adds', 'washing_machine_adds', 'purifier_adds', 'chimney_adds', 

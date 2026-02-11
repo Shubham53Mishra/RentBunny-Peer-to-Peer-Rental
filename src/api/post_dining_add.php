@@ -105,6 +105,11 @@ if($price_per_month <= 0) {
     echo json_encode(['success' => false, 'message' => 'price_per_month must be greater than 0']);
     exit;
 }
+if($security_deposit < 0) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'security_deposit must be >= 0']);
+    exit;
+}
 if($height <= 0 || $length <= 0 || $width <= 0) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'height, length, and width must be greater than 0']);
@@ -128,8 +133,8 @@ $price = $price_per_month;
 $table_name = 'dining_adds';
 
 // Insert into database using existing table columns
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, city, latitude, longitude, created_at, updated_at)
-               VALUES ('$user_id', '$title', '$description', '$price', '$city', '$latitude', '$longitude', NOW(), NOW())";
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, security_deposit, city, latitude, longitude, created_at, updated_at)
+               VALUES ('$user_id', '$title', '$description', '$price', '$security_deposit', '$city', '$latitude', '$longitude', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;

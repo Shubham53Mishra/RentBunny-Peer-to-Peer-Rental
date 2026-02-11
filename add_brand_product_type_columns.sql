@@ -32,9 +32,9 @@ ALTER TABLE sofa_adds ADD COLUMN product_type VARCHAR(100) AFTER `condition`;
 ALTER TABLE dining_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
 ALTER TABLE dining_adds ADD COLUMN product_type VARCHAR(100) AFTER `condition`;
 
--- Check: SELECT * FROM information_schema.COLUMNS WHERE TABLE_NAME='sidedesk_adds' AND COLUMN_NAME IN ('brand','product_type');
-ALTER TABLE sidedesk_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
-ALTER TABLE sidedesk_adds ADD COLUMN product_type VARCHAR(100) AFTER `condition`;
+-- Check: SELECT * FROM information_schema.COLUMNS WHERE TABLE_NAME='sidetable_adds' AND COLUMN_NAME IN ('brand','product_type');
+ALTER TABLE sidetable_adds ADD COLUMN brand VARCHAR(100) AFTER `condition`;
+ALTER TABLE sidetable_adds ADD COLUMN product_type VARCHAR(100) AFTER `condition`;
 
 -- Electronics - Home Appliances
 -- Check: SELECT * FROM information_schema.COLUMNS WHERE TABLE_NAME='ac_adds' AND COLUMN_NAME IN ('brand','product_type');

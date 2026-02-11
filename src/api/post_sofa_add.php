@@ -59,7 +59,7 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') {
 }
 
 // Required fields for sofa ad
-$required_fields = ['brand', 'frame_material', 'seating_capacity', 'seat_foam_type', 'product_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
+$required_fields = ['frame_material', 'seating_capacity', 'seat_foam_type', 'sofa_type', 'price_per_month', 'security_deposit', 'ad_title', 'description', 'latitude', 'longitude', 'city'];
 
 // Get JSON data
 $input = json_decode(file_get_contents('php://input'), true);
@@ -86,11 +86,10 @@ foreach($required_fields as $field) {
 }
 
 // Sanitize input and map to existing table columns
-$brand = mysqli_real_escape_string($conn, $input['brand']);
 $frame_material = mysqli_real_escape_string($conn, $input['frame_material']);
 $seating_capacity = intval($input['seating_capacity']);
 $seat_foam_type = mysqli_real_escape_string($conn, $input['seat_foam_type']);
-$product_type = mysqli_real_escape_string($conn, $input['product_type']);
+$sofa_type = mysqli_real_escape_string($conn, $input['sofa_type']);
 $price_per_month = floatval($input['price_per_month']);
 $security_deposit = floatval($input['security_deposit']);
 $ad_title = mysqli_real_escape_string($conn, $input['ad_title']);
@@ -122,15 +121,14 @@ if($longitude < -180 || $longitude > 180) {
 }
 
 // Map to existing table columns
-$title = "$product_type - $seating_capacity Seater ($frame_material)";
+$title = "$sofa_type - $seating_capacity Seater ($frame_material)";
 $price = $price_per_month;
-$condition = 'good';
 
 $table_name = 'sofa_adds';
 
 // Insert into database using existing table columns
-$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, `condition`, city, latitude, longitude, image_url, brand, created_at, updated_at)
-               VALUES ('$user_id', '$title', '$description', '$price', '$condition', '$city', '$latitude', '$longitude', '', '$brand', NOW(), NOW())";
+$insert_sql = "INSERT INTO $table_name (user_id, title, description, price, city, latitude, longitude, image_url, frame_material, seating_capacity, seat_foam_type, product_type, security_deposit, created_at, updated_at)
+               VALUES ('$user_id', '$title', '$description', '$price', '$city', '$latitude', '$longitude', '', '$frame_material', '$seating_capacity', '$seat_foam_type', '$sofa_type', '$security_deposit', NOW(), NOW())";
 
 if($conn->query($insert_sql)) {
     $add_id = $conn->insert_id;
@@ -141,7 +139,7 @@ if($conn->query($insert_sql)) {
         'table' => $table_name,
         'created_at' => date('Y-m-d H:i:s'),
         'user_id' => $user_id,
-        'product_type' => $product_type,
+        'sofa_type' => $sofa_type,
         'frame_material' => $frame_material,
         'seating_capacity' => $seating_capacity,
         'seat_foam_type' => $seat_foam_type,
