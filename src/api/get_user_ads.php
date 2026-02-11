@@ -59,7 +59,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         'cycle_adds' => 'Cycle',
         'medical_adds' => 'Medical',
         'music_adds' => 'Music',
-        'kitchen_adds' => 'Kitchen'
+        'kitchen_adds' => 'Kitchen',
+        'fitness_adds' => 'Fitness'
     );
     
     foreach($ad_tables as $table => $category) {
