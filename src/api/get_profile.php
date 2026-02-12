@@ -30,6 +30,14 @@ require_once($db_file);
 
 $response = array();
 
+// Function to get base URL
+function get_base_url() {
+    $protocol = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+    $host = $_SERVER['HTTP_HOST'];
+    $url = $protocol . $host;
+    return rtrim($url, '/');
+}
+
 if($_SERVER['REQUEST_METHOD'] == 'GET') {
     // Get token from multiple possible sources
     $token = isset($_GET['token']) ? $_GET['token'] : '';
@@ -92,6 +100,14 @@ if($_SERVER['REQUEST_METHOD'] == 'GET') {
         $user = $result->fetch_assoc();
         $response['success'] = true;
         $response['message'] = 'Profile fetched successfully';
+        
+        // Build profile image URL
+        $profile_image_url = null;
+        if(!empty($user['profile_image'])) {
+            $base_url = get_base_url();
+            $profile_image_url = $base_url . '/' . $user['profile_image'];
+        }
+        
         $response['data'] = array(
             'user_id' => $user['id'],
             'mobile' => $user['mobile'],
@@ -99,6 +115,7 @@ if($_SERVER['REQUEST_METHOD'] == 'GET') {
             'full_name' => $user['full_name'],
             'address' => $user['address'],
             'profile_image' => $user['profile_image'],
+            'profile_image_url' => $profile_image_url,
             'phone' => $user['phone'],
             'phone_verified' => (bool)$user['phone_verified'],
             'email_verified' => (bool)$user['email_verified'],

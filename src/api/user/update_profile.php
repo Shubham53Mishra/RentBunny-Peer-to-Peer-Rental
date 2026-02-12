@@ -49,6 +49,14 @@ function ensure_directory_exists($dir_path) {
     return is_writable($dir_path);
 }
 
+// Function to get base URL
+function get_base_url() {
+    $protocol = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+    $host = $_SERVER['HTTP_HOST'];
+    $url = $protocol . $host;
+    return rtrim($url, '/');
+}
+
 // Get token from header
 $token = '';
 if(function_exists('getallheaders')) {
@@ -240,10 +248,19 @@ if(!$stmt) {
 $stmt->bind_param($update_types, ...$update_values);
 
 if($stmt->execute()) {
-    echo json_encode([
+    $response_data = [
         'success' => true,
         'message' => 'Profile updated successfully'
-    ]);
+    ];
+    
+    // Add image URL if image was uploaded
+    if(!empty($profile_image_path)) {
+        $base_url = get_base_url();
+        $response_data['profile_image_url'] = $base_url . '/' . $profile_image_path;
+        $response_data['profile_image'] = $profile_image_path;
+    }
+    
+    echo json_encode($response_data);
 } else {
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Failed to update profile', 'error' => $stmt->error]);
