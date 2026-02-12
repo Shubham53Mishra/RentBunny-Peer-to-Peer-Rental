@@ -1,6 +1,32 @@
 <?php
 header('Content-Type: application/json');
-require_once('../common/db.php');
+
+// Dynamic path resolution - works on both local and live server
+$current_dir = dirname(__FILE__);
+$db_file = null;
+
+// Try multiple common paths
+$possible_paths = array(
+    $current_dir . '/../common/db.php',         // Local: src/api -> common
+    $current_dir . '/../../common/db.php',      // Alternative local
+    dirname(dirname($current_dir)) . '/common/db.php',  // Another option
+    dirname(dirname(dirname(dirname($current_dir)))) . '/config/database.php'  // Config db
+);
+
+foreach($possible_paths as $path) {
+    if(file_exists($path)) {
+        $db_file = $path;
+        break;
+    }
+}
+
+if(!$db_file) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Database connection file not found']);
+    exit;
+}
+
+require_once($db_file);
 
 $response = array();
 
@@ -30,7 +56,7 @@ if($_SERVER['REQUEST_METHOD'] == 'GET') {
     
     $token = mysqli_real_escape_string($conn, $token);
     
-    // Fetch user profile data
+    // Fetch user profile data using prepared statement
     $sql = "SELECT 
                 id,
                 mobile,
@@ -47,9 +73,20 @@ if($_SERVER['REQUEST_METHOD'] == 'GET') {
                 created_at,
                 updated_at
             FROM users 
-            WHERE token = '$token' AND token IS NOT NULL";
+            WHERE token = ? AND token IS NOT NULL";
     
-    $result = $conn->query($sql);
+    $stmt = $conn->prepare($sql);
+    if(!$stmt) {
+        http_response_code(500);
+        $response['success'] = false;
+        $response['message'] = 'Database error';
+        echo json_encode($response);
+        exit;
+    }
+    
+    $stmt->bind_param("s", $token);
+    $stmt->execute();
+    $result = $stmt->get_result();
     
     if($result && $result->num_rows > 0) {
         $user = $result->fetch_assoc();
@@ -77,6 +114,8 @@ if($_SERVER['REQUEST_METHOD'] == 'GET') {
         $response['success'] = false;
         $response['message'] = 'Invalid token or user not found';
     }
+    
+    $stmt->close();
 } else {
     http_response_code(405);
     $response['success'] = false;
