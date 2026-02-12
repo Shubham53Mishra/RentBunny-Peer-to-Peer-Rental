@@ -4,6 +4,22 @@ require_once('../../common/db.php');
 
 $response = array();
 
+// Define absolute path
+$base_path = dirname(dirname(dirname(dirname(__FILE__))));
+
+// Function to ensure directory exists
+function ensure_directory_exists($dir_path) {
+    if(!is_dir($dir_path)) {
+        if(!mkdir($dir_path, 0755, true)) {
+            return false;
+        }
+    }
+    if(!is_writable($dir_path)) {
+        @chmod($dir_path, 0755);
+    }
+    return is_writable($dir_path);
+}
+
 // Get token from header
 $token = '';
 if(function_exists('getallheaders')) {
@@ -27,16 +43,27 @@ if(empty($token)) {
 }
 
 $token = mysqli_real_escape_string($conn, $token);
-$sql = "SELECT id FROM users WHERE token = '$token' AND token IS NOT NULL";
-$result = $conn->query($sql);
+$sql = "SELECT id FROM users WHERE token = ? AND token IS NOT NULL";
+$stmt = $conn->prepare($sql);
+if(!$stmt) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Database error']);
+    exit;
+}
+$stmt->bind_param("s", $token);
+$stmt->execute();
+$result = $stmt->get_result();
+
 if($result->num_rows == 0) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Invalid token']);
+    $stmt->close();
     exit;
 }
 
 $user_row = $result->fetch_assoc();
 $user_id = $user_row['id'];
+$stmt->close();
 
 if($_SERVER['REQUEST_METHOD'] != 'POST') {
     http_response_code(405);
@@ -68,10 +95,16 @@ if(!empty($email_address) && !filter_var($email_address, FILTER_VALIDATE_EMAIL))
 
 // Check if email is already registered by another user
 if(!empty($email_address)) {
-    $check_email = "SELECT id FROM users WHERE email_address = '$email_address' AND id != $user_id";
-    $check_result = $conn->query($check_email);
-    if($check_result && $check_result->num_rows > 0) {
-        $errors[] = 'Email already registered';
+    $check_email = "SELECT id FROM users WHERE email_address = ? AND id != ?";
+    $check_stmt = $conn->prepare($check_email);
+    if($check_stmt) {
+        $check_stmt->bind_param("si", $email_address, $user_id);
+        $check_stmt->execute();
+        $check_result = $check_stmt->get_result();
+        if($check_result && $check_result->num_rows > 0) {
+            $errors[] = 'Email already registered';
+        }
+        $check_stmt->close();
     }
 }
 
@@ -100,10 +133,14 @@ if(isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] == 0) {
         exit;
     }
     
-    // Create uploads directory if not exists
-    $upload_dir = '../../../assets/uploads/profiles/';
-    if(!is_dir($upload_dir)) {
-        mkdir($upload_dir, 0755, true);
+    // Create user-specific uploads directory if not exists
+    $upload_dir = $base_path . '/assets/uploads/users/' . $user_id . '/';
+    
+    // Ensure all directories exist with proper permissions
+    if(!ensure_directory_exists($upload_dir)) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'Failed to create or access upload directory']);
+        exit;
     }
     
     // Generate unique filename
@@ -111,47 +148,76 @@ if(isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] == 0) {
     $upload_path = $upload_dir . $new_filename;
     
     if(move_uploaded_file($_FILES['profile_image']['tmp_name'], $upload_path)) {
-        $profile_image_path = 'assets/uploads/profiles/' . $new_filename;
+        // Store relative path for web access - user-specific folder
+        $profile_image_path = 'assets/uploads/users/' . $user_id . '/' . $new_filename;
+        error_log("Image uploaded successfully: " . $upload_path);
     } else {
         http_response_code(500);
-        echo json_encode(['success' => false, 'message' => 'Failed to upload profile image']);
+        echo json_encode(['success' => false, 'message' => 'Failed to upload profile image', 'debug' => 'move_uploaded_file failed']);
         exit;
     }
 }
 
 // Prepare update query
 $update_fields = array();
-$update_fields[] = "email_address = '$email_address'";
-$update_fields[] = "full_name = '$full_name'";
-$update_fields[] = "address = '$address'";
+$update_fields[] = "email_address = ?";
+$update_fields[] = "full_name = ?";
+$update_fields[] = "address = ?";
+$update_values = array($email_address, $full_name, $address);
+$update_types = "sss";
 
 if(!empty($profile_image_path)) {
     // Get old image path to delete
-    $old_image_sql = "SELECT profile_image FROM users WHERE id = $user_id";
-    $old_image_result = $conn->query($old_image_sql);
+    $old_image_sql = "SELECT profile_image FROM users WHERE id = ?";
+    $stmt = $conn->prepare($old_image_sql);
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $old_image_result = $stmt->get_result();
+    
     if($old_image_result && $old_image_result->num_rows > 0) {
         $old_image_row = $old_image_result->fetch_assoc();
         if(!empty($old_image_row['profile_image'])) {
-            $old_path = '../../../' . $old_image_row['profile_image'];
+            $old_path = $base_path . '/' . $old_image_row['profile_image'];
             if(file_exists($old_path)) {
-                unlink($old_path);
+                if(unlink($old_path)) {
+                    error_log("Old image deleted: " . $old_path);
+                } else {
+                    error_log("Failed to delete old image: " . $old_path);
+                }
             }
         }
     }
-    $update_fields[] = "profile_image = '$profile_image_path'";
+    $stmt->close();
+    
+    $update_fields[] = "profile_image = ?";
+    $update_values[] = $profile_image_path;
+    $update_types .= "s";
 }
 
 $update_fields[] = "updated_at = NOW()";
 
-$update_query = "UPDATE users SET " . implode(", ", $update_fields) . " WHERE id = $user_id";
+$update_query = "UPDATE users SET " . implode(", ", $update_fields) . " WHERE id = ?";
+$update_values[] = $user_id;
+$update_types .= "i";
 
-if($conn->query($update_query)) {
+// Use prepared statement for security
+$stmt = $conn->prepare($update_query);
+if(!$stmt) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Prepare failed', 'error' => $conn->error]);
+    exit;
+}
+
+$stmt->bind_param($update_types, ...$update_values);
+
+if($stmt->execute()) {
     echo json_encode([
         'success' => true,
         'message' => 'Profile updated successfully'
     ]);
 } else {
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Failed to update profile', 'error' => $conn->error]);
+    echo json_encode(['success' => false, 'message' => 'Failed to update profile', 'error' => $stmt->error]);
 }
+$stmt->close();
 ?>
