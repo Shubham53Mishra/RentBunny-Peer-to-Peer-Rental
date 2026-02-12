@@ -1,11 +1,40 @@
 <?php
 header('Content-Type: application/json');
-require_once('../../common/db.php');
+
+// Dynamic path resolution - works on both local and live server
+$current_dir = dirname(__FILE__);
+$db_file = null;
+
+// Try multiple common paths
+$possible_paths = array(
+    $current_dir . '/../../common/db.php',      // Local: src/api/user -> common
+    $current_dir . '/../common/db.php',          // Live: user/common
+    dirname(dirname($current_dir)) . '/common/db.php',  // Alternative
+    dirname(dirname(dirname(dirname($current_dir)))) . '/config/database.php'  // Config db
+);
+
+foreach($possible_paths as $path) {
+    if(file_exists($path)) {
+        $db_file = $path;
+        break;
+    }
+}
+
+if(!$db_file) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Database connection file not found']);
+    exit;
+}
+
+require_once($db_file);
 
 $response = array();
 
-// Define absolute path
-$base_path = dirname(dirname(dirname(dirname(__FILE__))));
+// Define absolute path - works for both local and live server
+$base_path = dirname($current_dir);
+while (!is_dir($base_path . '/assets') && $base_path != '/') {
+    $base_path = dirname($base_path);
+}
 
 // Function to ensure directory exists
 function ensure_directory_exists($dir_path) {
