@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Razorpay Payment - Rent Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .payment-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .payment-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .payment-header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .payment-header p {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .payment-details {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        
+        .detail-row label {
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .detail-row value {
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .payment-amount {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .payment-button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 15px;
+        }
+        
+        .payment-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .payment-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .status-message {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            text-align: center;
+            display: none;
+        }
+        
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+        
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+        
+        .status-message.processing {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            display: block;
+        }
+        
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loader.active {
+            display: block;
+        }
+        
+        .info-text {
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="payment-container">
+        <div class="payment-header">
+            <h1>🛒 Rental Payment</h1>
+            <p>Secure Payment via Razorpay</p>
+        </div>
+        
+        <div id="statusMessage" class="status-message"></div>
+        <div id="loader" class="loader"></div>
+        
+        <div class="payment-details">
+            <div class="detail-row">
+                <label>Product ID:</label>
+                <value id="productId">-</value>
+            </div>
+            <div class="detail-row">
+                <label>Rental Period:</label>
+                <value id="rentalPeriod">-</value>
+            </div>
+            <div class="detail-row">
+                <label>Amount:</label>
+                <value id="displayAmount">₹0</value>
+            </div>
+        </div>
+        
+        <div class="payment-amount" id="amount">₹0</div>
+        
+        <button class="payment-button" id="payBtn" onclick="initiatePayment()">Pay Now</button>
+        
+        <div class="info-text">
+            <p>💳 Safe & Secure Payment</p>
+            <p>Powered by Razorpay</p>
+        </div>
+    </div>
+
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script>
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('user_id') || localStorage.getItem('user_id');
+        const productId = urlParams.get('product_id') || localStorage.getItem('product_id');
+        const amount = urlParams.get('amount') || localStorage.getItem('amount');
+        const rentalPeriod = urlParams.get('rental_period') || 0;
+        const description = urlParams.get('description') || 'Rental Payment';
+
+        // Display payment details
+        document.getElementById('productId').innerText = productId || '-';
+        document.getElementById('rentalPeriod').innerText = (rentalPeriod + ' days') || '-';
+        const amountInRupees = (amount / 100).toFixed(2);
+        document.getElementById('amount').innerText = '₹' + amountInRupees;
+        document.getElementById('displayAmount').innerText = '₹' + amountInRupees;
+
+        function showMessage(message, type = 'info') {
+            const msgEl = document.getElementById('statusMessage');
+            msgEl.innerText = message;
+            msgEl.className = 'status-message ' + type;
+            
+            if(type !== 'error') {
+                setTimeout(() => msgEl.style.display = 'none', 5000);
+            }
+        }
+
+        function showLoader(show = true) {
+            document.getElementById('loader').classList.toggle('active', show);
+            document.getElementById('payBtn').disabled = show;
+        }
+
+        async function initiatePayment() {
+            if(!userId || !amount || !productId) {
+                showMessage('Missing payment details. Please try again.', 'error');
+                return;
+            }
+
+            showLoader(true);
+            showMessage('Processing payment...', 'processing');
+
+            try {
+                // Step 1: Create order
+                const orderResponse = await fetch('/Rent/src/api/payments/initiate_payment.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: parseInt(userId),
+                        product_id: parseInt(productId),
+                        amount: parseInt(amount),
+                        rental_period: parseInt(rentalPeriod),
+                        description: description
+                    })
+                });
+
+                const orderData = await orderResponse.json();
+
+                if(!orderData.success) {
+                    throw new Error(orderData.message || 'Failed to create order');
+                }
+
+                // Step 2: Open Razorpay checkout
+                const options = {
+                    key: orderData.key_id,
+                    amount: orderData.amount,
+                    currency: orderData.currency,
+                    name: 'Rent Platform',
+                    description: orderData.description,
+                    order_id: orderData.order_id,
+                    handler: function(response) {
+                        verifyPayment(response, orderData.order_id);
+                    },
+                    prefill: {
+                        contact: localStorage.getItem('phone') || '',
+                        email: localStorage.getItem('email') || ''
+                    },
+                    theme: {
+                        color: '#667eea'
+                    },
+                    modal: {
+                        ondismiss: function() {
+                            showLoader(false);
+                            showMessage('Payment cancelled', 'error');
+                        }
+                    }
+                };
+
+                const rzp = new Razorpay(options);
+                rzp.open();
+                showLoader(false);
+
+            } catch (error) {
+                showLoader(false);
+                showMessage('Error: ' + error.message, 'error');
+                console.error('Payment error:', error);
+            }
+        }
+
+        async function verifyPayment(response, orderId) {
+            showLoader(true);
+            showMessage('Verifying payment...', 'processing');
+
+            try {
+                const verifyResponse = await fetch('/Rent/src/api/payments/verify_payment.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        order_id: orderId,
+                        payment_id: response.razorpay_payment_id,
+                        signature: response.razorpay_signature
+                    })
+                });
+
+                const verifyData = await verifyResponse.json();
+
+                if(verifyData.success) {
+                    showLoader(false);
+                    showMessage('✓ Payment successful! Redirecting...', 'success');
+                    
+                    // Store payment details
+                    localStorage.setItem('last_payment', JSON.stringify({
+                        order_id: orderId,
+                        payment_id: response.razorpay_payment_id,
+                        amount: parseInt(amount),
+                        timestamp: new Date().toISOString()
+                    }));
+
+                    // Redirect after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = '/Rent/public/index.php?payment=success';
+                    }, 2000);
+                } else {
+                    throw new Error(verifyData.message || 'Verification failed');
+                }
+
+            } catch (error) {
+                showLoader(false);
+                showMessage('Verification error: ' + error.message, 'error');
+                console.error('Verification error:', error);
+            }
+        }
+
+        // Load payment details on page load
+        window.addEventListener('load', () => {
+            if(!amount) {
+                showMessage('Please provide amount', 'error');
+                document.getElementById('payBtn').disabled = true;
+            }
+        });
+    </script>
+</body>
+</html>
