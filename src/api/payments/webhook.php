@@ -152,6 +152,5 @@ function handle_order_paid($payload, $conn) {
         logError("Order paid: $order_id");
     }
 }
-
 ?>
 
