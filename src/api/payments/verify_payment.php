@@ -87,11 +87,10 @@ try {
 
     logError("Updated $affected rows in payments table");
 
-    // Fetch payment details
+    // Fetch payment details (without joining users table)
     $payment_query = $conn->query("
-        SELECT p.*, u.email, u.name 
+        SELECT p.id, p.order_id, p.payment_id, p.amount, p.user_id, p.product_id, p.status 
         FROM payments p
-        JOIN users u ON p.user_id = u.id
         WHERE p.order_id = '" . $conn->real_escape_string($order_id) . "'
     ");
 
@@ -104,6 +103,7 @@ try {
     }
 
     $payment = $payment_query->fetch_assoc();
+    logError("Payment fetched - ID: " . $payment['id'] . ", Status: " . $payment['status']);
 
     // Update rental/booking status if applicable
     if($payment['booking_id'] && $payment['booking_id'] > 0) {
@@ -131,8 +131,8 @@ try {
         'order_id' => $order_id,
         'amount' => $payment['amount'],
         'user_id' => $payment['user_id'],
-        'user_email' => $payment['email'],
-        'user_name' => $payment['name']
+        'product_id' => $payment['product_id'],
+        'status' => $payment['status']
     ], JSON_UNESCAPED_SLASHES);
 
 } catch (Exception $e) {
