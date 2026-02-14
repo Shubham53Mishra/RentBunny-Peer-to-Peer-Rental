@@ -64,7 +64,8 @@ try {
         'payment' => array(
             'order_id' => $payment['order_id'],
             'payment_id' => $payment['payment_id'],
-            'amount' => $payment['amount'],
+            'amount_rupees' => $payment['amount'],
+            'amount_paise' => intval($payment['amount'] * 100),
             'status' => $payment['status'],
             'created_at' => $payment['created_at'],
             'updated_at' => $payment['updated_at']

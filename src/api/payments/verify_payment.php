@@ -66,7 +66,7 @@ try {
     // Update payment in database
     $stmt = $conn->prepare("
         UPDATE payments 
-        SET payment_id = ?, status = 'completed', updated_at = NOW()
+        SET payment_id = ?, status = 'completed', razorpay_signature = ?, updated_at = NOW()
         WHERE order_id = ?
     ");
 
@@ -74,7 +74,7 @@ try {
         throw new Exception('Prepare statement failed: ' . $conn->error);
     }
 
-    if(!$stmt->bind_param("ss", $payment_id, $order_id)) {
+    if(!$stmt->bind_param("sss", $payment_id, $signature, $order_id)) {
         throw new Exception('Bind param failed: ' . $stmt->error);
     }
 
@@ -129,7 +129,8 @@ try {
         'message' => 'Payment verified successfully',
         'payment_id' => $payment_id,
         'order_id' => $order_id,
-        'amount' => $payment['amount'],
+        'amount_rupees' => $payment['amount'],
+        'amount_paise' => intval($payment['amount'] * 100),
         'user_id' => $payment['user_id'],
         'product_id' => $payment['product_id'],
         'status' => $payment['status']

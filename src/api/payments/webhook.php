@@ -57,19 +57,19 @@ try {
     try {
         switch($event) {
             case 'payment.authorized':
-                handle_payment_authorized($payload, $conn);
+                handle_payment_authorized($payload, $conn, $webhook_signature);
                 break;
 
             case 'payment.failed':
-                handle_payment_failed($payload, $conn);
+                handle_payment_failed($payload, $conn, $webhook_signature);
                 break;
 
             case 'payment.captured':
-                handle_payment_captured($payload, $conn);
+                handle_payment_captured($payload, $conn, $webhook_signature);
                 break;
 
             case 'order.paid':
-                handle_order_paid($payload, $conn);
+                handle_order_paid($payload, $conn, $webhook_signature);
                 break;
 
             default:
@@ -91,62 +91,62 @@ try {
     echo json_encode(['status' => 'error']);
 }
 
-function handle_payment_authorized($payload, $conn) {
+function handle_payment_authorized($payload, $conn, $signature = '') {
     $payment_data = $payload['payment'] ?? array();
     $payment_id = $payment_data['id'] ?? '';
     $order_id = $payment_data['order_id'] ?? '';
     
     if(!$payment_id || !$order_id) return;
     
-    $stmt = $conn->prepare("UPDATE payments SET payment_id = ?, status = 'authorized', updated_at = NOW() WHERE order_id = ?");
+    $stmt = $conn->prepare("UPDATE payments SET payment_id = ?, status = 'authorized', razorpay_signature = ?, updated_at = NOW() WHERE order_id = ?");
     if($stmt) {
-        $stmt->bind_param("ss", $payment_id, $order_id);
+        $stmt->bind_param("sss", $payment_id, $signature, $order_id);
         $stmt->execute();
         $stmt->close();
         logError("Payment authorized: $payment_id");
     }
 }
 
-function handle_payment_failed($payload, $conn) {
+function handle_payment_failed($payload, $conn, $signature = '') {
     $payment_data = $payload['payment'] ?? array();
     $order_id = $payment_data['order_id'] ?? '';
     $error_msg = $payment_data['error_description'] ?? 'Payment failed';
     
     if(!$order_id) return;
     
-    $stmt = $conn->prepare("UPDATE payments SET status = 'failed', description = ?, updated_at = NOW() WHERE order_id = ?");
+    $stmt = $conn->prepare("UPDATE payments SET status = 'failed', description = ?, razorpay_signature = ?, updated_at = NOW() WHERE order_id = ?");
     if($stmt) {
-        $stmt->bind_param("ss", $error_msg, $order_id);
+        $stmt->bind_param("sss", $error_msg, $signature, $order_id);
         $stmt->execute();
         $stmt->close();
         logError("Payment failed: $order_id - $error_msg");
     }
 }
 
-function handle_payment_captured($payload, $conn) {
+function handle_payment_captured($payload, $conn, $signature = '') {
     $payment_data = $payload['payment'] ?? array();
     $payment_id = $payment_data['id'] ?? '';
     
     if(!$payment_id) return;
     
-    $stmt = $conn->prepare("UPDATE payments SET status = 'completed', updated_at = NOW() WHERE payment_id = ?");
+    $stmt = $conn->prepare("UPDATE payments SET status = 'completed', razorpay_signature = ?, updated_at = NOW() WHERE payment_id = ?");
     if($stmt) {
-        $stmt->bind_param("s", $payment_id);
+        $stmt->bind_param("ss", $signature, $payment_id);
         $stmt->execute();
         $stmt->close();
         logError("Payment captured: $payment_id");
     }
 }
 
-function handle_order_paid($payload, $conn) {
+function handle_order_paid($payload, $conn, $signature = '') {
     $order_data = $payload['order'] ?? array();
     $order_id = $order_data['id'] ?? '';
     
     if(!$order_id) return;
     
-    $stmt = $conn->prepare("UPDATE payments SET status = 'completed', updated_at = NOW() WHERE order_id = ?");
+    $stmt = $conn->prepare("UPDATE payments SET status = 'completed', razorpay_signature = ?, updated_at = NOW() WHERE order_id = ?");
     if($stmt) {
-        $stmt->bind_param("s", $order_id);
+        $stmt->bind_param("ss", $signature, $order_id);
         $stmt->execute();
         $stmt->close();
         logError("Order paid: $order_id");

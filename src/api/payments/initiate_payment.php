@@ -38,7 +38,8 @@ try {
     }
 
     $user_id = intval($data['user_id']);
-    $amount = intval($data['amount']);
+    $amount = intval($data['amount']); // Amount in paise from app
+    $amount_rupees = $amount / 100; // Convert to rupees for database storage
     $product_id = intval($data['product_id']);
     $description = isset($data['description']) ? $data['description'] : 'Rental Payment';
     $rental_period = isset($data['rental_period']) ? intval($data['rental_period']) : 0;
@@ -136,8 +137,8 @@ try {
 
     // Store order in database using prepared statement
     $stmt = $conn->prepare("
-        INSERT INTO payments (user_id, order_id, amount, currency, status, description, booking_id, product_id, rental_period)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO payments (user_id, order_id, amount, currency, status, description, booking_id, product_id, rental_period, payment_method)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
     if(!$stmt) {
@@ -146,9 +147,10 @@ try {
 
     $currency = 'INR';
     $status = 'created';
+    $payment_method = 'razorpay';
 
     // Bind parameters with correct types
-    if(!$stmt->bind_param("isisssiii", $user_id, $razorpay_order_id, $amount, $currency, $status, $description, $booking_id, $product_id, $rental_period)) {
+    if(!$stmt->bind_param("isisissssi", $user_id, $razorpay_order_id, $amount_rupees, $currency, $status, $description, $booking_id, $product_id, $rental_period, $payment_method)) {
         throw new Exception('Bind param failed: ' . $stmt->error);
     }
 
@@ -164,7 +166,8 @@ try {
         'success' => true,
         'message' => 'Order created successfully',
         'order_id' => $razorpay_order_id,
-        'amount' => $amount,
+        'amount_paise' => $amount,
+        'amount_rupees' => $amount_rupees,
         'currency' => 'INR',
         'key_id' => $key_id,
         'user_id' => $user_id,
