@@ -175,12 +175,12 @@ try {
     $error_msg = $e->getMessage();
     logError("Exception: " . $error_msg);
     
-    http_response_code(500);
+    http_response_code(400);
     echo json_encode([
         'success' => false,
         'message' => $error_msg,
         'type' => 'error'
-    ]);
+    ], JSON_UNESCAPED_SLASHES);
 } catch (Throwable $t) {
     $error_msg = $t->getMessage();
     logError("Throwable: " . $error_msg);
@@ -190,7 +190,7 @@ try {
         'success' => false,
         'message' => $error_msg,
         'type' => 'fatal'
-    ]);
+    ], JSON_UNESCAPED_SLASHES);
 }
 ?>
 

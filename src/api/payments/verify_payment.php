@@ -1,9 +1,8 @@
 <?php
 header('Content-Type: application/json');
 
-// Enable error reporting
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
 
 function logError($message) {
     $log_dir = __DIR__ . '/logs';
@@ -15,8 +14,8 @@ function logError($message) {
 
 try {
     // Database connection
-    require_once('../../config/database.php');
-    require_once('../../config/razorpay.php');
+    require_once('../common/db.php');
+    require_once('../common/razorpay.php');
 
     if(!isset($conn) || $conn->connect_error) {
         throw new Exception('Database connection failed');
@@ -31,25 +30,38 @@ try {
     }
 
     if(!isset($data['payment_id']) || !isset($data['order_id']) || !isset($data['signature'])) {
-        throw new Exception('Missing payment verification data');
+        throw new Exception('Missing payment verification data (payment_id, order_id, or signature)');
     }
 
-    $payment_id = $data['payment_id'];
-    $order_id = $data['order_id'];
-    $signature = $data['signature'];
+    $payment_id = trim($data['payment_id']);
+    $order_id = trim($data['order_id']);
+    $signature = trim($data['signature']);
+
+    logError("Verification attempt - Order: $order_id, Payment: $payment_id");
 
     if(!defined('RAZORPAY_KEY_SECRET') || empty(RAZORPAY_KEY_SECRET)) {
+        logError("Razorpay secret key not configured");
         throw new Exception('Razorpay secret key not configured');
     }
 
     $key_secret = RAZORPAY_KEY_SECRET;
 
-    // Verify signature
-    $verified_signature = hash_hmac('sha256', $order_id . "|" . $payment_id, $key_secret);
+    // Verify signature - CORRECT RAZORPAY FORMAT
+    $payload_to_verify = $order_id . "|" . $payment_id;
+    $verified_signature = hash_hmac('sha256', $payload_to_verify, $key_secret);
 
+    logError("Expected signature: $verified_signature");
+    logError("Received signature: $signature");
+    logError("Payload verified: $payload_to_verify");
+
+    // Compare signatures (case-sensitive, exact match)
     if($verified_signature !== $signature) {
-        throw new Exception('Signature verification failed');
+        logError("Signature mismatch!");
+        throw new Exception('Signature verification failed - Signatures do not match');
     }
+
+    // Signature verified successfully
+    logError("Signature verified successfully!");
 
     // Update payment in database
     $stmt = $conn->prepare("
@@ -70,7 +82,10 @@ try {
         throw new Exception('Execute failed: ' . $stmt->error);
     }
 
+    $affected = $stmt->affected_rows;
     $stmt->close();
+
+    logError("Updated $affected rows in payments table");
 
     // Fetch payment details
     $payment_query = $conn->query("
@@ -85,7 +100,7 @@ try {
     }
 
     if($payment_query->num_rows == 0) {
-        throw new Exception('Payment not found');
+        throw new Exception('Payment not found after update');
     }
 
     $payment = $payment_query->fetch_assoc();
@@ -94,7 +109,7 @@ try {
     if($payment['booking_id'] && $payment['booking_id'] > 0) {
         $stmt = $conn->prepare("
             UPDATE rentals 
-            SET payment_id = ?, status = 'confirmed'
+            SET payment_id = ?, status = 'confirmed', updated_at = NOW()
             WHERE id = ?
         ");
         
@@ -104,6 +119,7 @@ try {
             $stmt->bind_param("ii", $payment_id_int, $booking_id);
             $stmt->execute();
             $stmt->close();
+            logError("Updated rental status for booking ID: " . $booking_id);
         }
     }
 
@@ -115,19 +131,20 @@ try {
         'order_id' => $order_id,
         'amount' => $payment['amount'],
         'user_id' => $payment['user_id'],
-        'user_email' => $payment['email']
-    ]);
+        'user_email' => $payment['email'],
+        'user_name' => $payment['name']
+    ], JSON_UNESCAPED_SLASHES);
 
 } catch (Exception $e) {
     $error_msg = $e->getMessage();
     logError("Exception: " . $error_msg);
     
-    http_response_code(500);
+    http_response_code(400);
     echo json_encode([
         'success' => false,
         'message' => $error_msg,
         'type' => 'error'
-    ]);
+    ], JSON_UNESCAPED_SLASHES);
 } catch (Throwable $t) {
     $error_msg = $t->getMessage();
     logError("Throwable: " . $error_msg);
@@ -137,6 +154,6 @@ try {
         'success' => false,
         'message' => $error_msg,
         'type' => 'fatal'
-    ]);
+    ], JSON_UNESCAPED_SLASHES);
 }
 ?>
