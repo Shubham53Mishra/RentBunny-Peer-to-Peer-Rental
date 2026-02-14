@@ -1,25 +1,46 @@
 <?php
 header('Content-Type: application/json');
 
-// Database connection
-require_once('../../config/database.php');
-require_once('../../config/razorpay.php');
+// Enable error reporting
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
-$response = array();
+function logError($message) {
+    $log_dir = __DIR__ . '/logs';
+    if(!is_dir($log_dir)) {
+        mkdir($log_dir, 0755, true);
+    }
+    file_put_contents($log_dir . '/verify_error.log', date('Y-m-d H:i:s') . " - " . $message . "\n", FILE_APPEND);
+}
 
 try {
+    // Database connection
+    require_once('../../config/database.php');
+    require_once('../../config/razorpay.php');
+
+    if(!isset($conn) || $conn->connect_error) {
+        throw new Exception('Database connection failed');
+    }
+
     // Get POST data
-    $data = json_decode(file_get_contents("php://input"), true);
-    
+    $input = file_get_contents("php://input");
+    $data = json_decode($input, true);
+
+    if(!$data) {
+        throw new Exception('Invalid JSON input');
+    }
+
     if(!isset($data['payment_id']) || !isset($data['order_id']) || !isset($data['signature'])) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Missing payment verification data']);
-        exit;
+        throw new Exception('Missing payment verification data');
     }
 
     $payment_id = $data['payment_id'];
     $order_id = $data['order_id'];
     $signature = $data['signature'];
+
+    if(!defined('RAZORPAY_KEY_SECRET') || empty(RAZORPAY_KEY_SECRET)) {
+        throw new Exception('Razorpay secret key not configured');
+    }
 
     $key_secret = RAZORPAY_KEY_SECRET;
 
@@ -27,9 +48,7 @@ try {
     $verified_signature = hash_hmac('sha256', $order_id . "|" . $payment_id, $key_secret);
 
     if($verified_signature !== $signature) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Signature verification failed']);
-        exit;
+        throw new Exception('Signature verification failed');
     }
 
     // Update payment in database
@@ -39,39 +58,56 @@ try {
         WHERE order_id = ?
     ");
 
-    $stmt->bind_param("ss", $payment_id, $order_id);
+    if(!$stmt) {
+        throw new Exception('Prepare statement failed: ' . $conn->error);
+    }
+
+    if(!$stmt->bind_param("ss", $payment_id, $order_id)) {
+        throw new Exception('Bind param failed: ' . $stmt->error);
+    }
 
     if(!$stmt->execute()) {
-        http_response_code(500);
-        echo json_encode(['success' => false, 'message' => 'Database error: ' . $stmt->error]);
-        exit;
+        throw new Exception('Execute failed: ' . $stmt->error);
     }
+
+    $stmt->close();
 
     // Fetch payment details
     $payment_query = $conn->query("
         SELECT p.*, u.email, u.name 
         FROM payments p
         JOIN users u ON p.user_id = u.id
-        WHERE p.order_id = '$order_id'
+        WHERE p.order_id = '" . $conn->real_escape_string($order_id) . "'
     ");
 
+    if(!$payment_query) {
+        throw new Exception('Query failed: ' . $conn->error);
+    }
+
     if($payment_query->num_rows == 0) {
-        http_response_code(404);
-        echo json_encode(['success' => false, 'message' => 'Payment not found']);
-        exit;
+        throw new Exception('Payment not found');
     }
 
     $payment = $payment_query->fetch_assoc();
 
     // Update rental/booking status if applicable
-    if($payment['booking_id']) {
-        $conn->query("
+    if($payment['booking_id'] && $payment['booking_id'] > 0) {
+        $stmt = $conn->prepare("
             UPDATE rentals 
-            SET payment_id = " . $payment['id'] . ", status = 'confirmed'
-            WHERE id = " . $payment['booking_id']
-        );
+            SET payment_id = ?, status = 'confirmed'
+            WHERE id = ?
+        ");
+        
+        if($stmt) {
+            $payment_id_int = intval($payment['id']);
+            $booking_id = intval($payment['booking_id']);
+            $stmt->bind_param("ii", $payment_id_int, $booking_id);
+            $stmt->execute();
+            $stmt->close();
+        }
     }
 
+    http_response_code(200);
     echo json_encode([
         'success' => true,
         'message' => 'Payment verified successfully',
@@ -83,8 +119,25 @@ try {
     ]);
 
 } catch (Exception $e) {
+    $error_msg = $e->getMessage();
+    logError("Exception: " . $error_msg);
+    
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+    echo json_encode([
+        'success' => false,
+        'message' => $error_msg,
+        'type' => 'error'
+    ]);
+} catch (Throwable $t) {
+    $error_msg = $t->getMessage();
+    logError("Throwable: " . $error_msg);
+    
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => $error_msg,
+        'type' => 'fatal'
+    ]);
 }
 
 ?>
