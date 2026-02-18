@@ -124,17 +124,19 @@ try {
     }
 
     http_response_code(200);
-    echo json_encode([
+    $response_data = [
         'success' => true,
         'message' => 'Payment verified successfully',
         'payment_id' => $payment_id,
         'order_id' => $order_id,
-        'amount_rupees' => $payment['amount'],
+        'amount_rupees' => floatval(round($payment['amount'], 2)),
         'amount_paise' => intval($payment['amount'] * 100),
-        'user_id' => $payment['user_id'],
-        'product_id' => $payment['product_id'],
+        'user_id' => intval($payment['user_id']),
+        'product_id' => intval($payment['product_id']),
         'status' => $payment['status']
-    ], JSON_UNESCAPED_SLASHES);
+    ];
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($response_data, JSON_UNESCAPED_SLASHES | JSON_NUMERIC_CHECK);
 
 } catch (Exception $e) {
     $error_msg = $e->getMessage();

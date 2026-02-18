@@ -58,19 +58,21 @@ try {
     $payment = $result->fetch_assoc();
     $stmt->close();
 
-    http_response_code(200);
-    echo json_encode([
+    $response_data = [
         'success' => true,
-        'payment' => array(
+        'payment' => [
             'order_id' => $payment['order_id'],
             'payment_id' => $payment['payment_id'],
-            'amount_rupees' => $payment['amount'],
+            'amount_rupees' => floatval(round($payment['amount'], 2)),
             'amount_paise' => intval($payment['amount'] * 100),
             'status' => $payment['status'],
             'created_at' => $payment['created_at'],
             'updated_at' => $payment['updated_at']
-        )
-    ]);
+        ]
+    ];
+
+    http_response_code(200);
+    echo json_encode($response_data, JSON_NUMERIC_CHECK);
 
 } catch (Exception $e) {
     $error_msg = $e->getMessage();

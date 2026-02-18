@@ -162,17 +162,19 @@ try {
 
     // Send success response
     http_response_code(200);
-    echo json_encode([
+    $response_data = [
         'success' => true,
         'message' => 'Order created successfully',
         'order_id' => $razorpay_order_id,
-        'amount_paise' => $amount,
-        'amount_rupees' => $amount_rupees,
+        'amount_paise' => intval($amount),
+        'amount_rupees' => round($amount_rupees, 2),
         'currency' => 'INR',
         'key_id' => $key_id,
-        'user_id' => $user_id,
+        'user_id' => intval($user_id),
         'description' => $description
-    ]);
+    ];
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($response_data, JSON_UNESCAPED_SLASHES | JSON_NUMERIC_CHECK);
 
 } catch (Exception $e) {
     $error_msg = $e->getMessage();
