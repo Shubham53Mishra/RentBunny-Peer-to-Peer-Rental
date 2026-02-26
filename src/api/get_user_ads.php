@@ -48,22 +48,69 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Fetch all ads posted by user from all tables
     $ads = array();
     
-    // Define all ad tables
+    // Define all ad tables with their categories
+    // Using individual tables since parent categories don't have single tables
     $ad_tables = array(
-        'furniture_adds' => 'Furniture',
-        'appliance_adds' => 'Appliance',
+        // Vehicles
         'bike_adds' => 'Bike',
-        'camera_adds' => 'Camera',
         'car_adds' => 'Car',
-        'clothing_adds' => 'Clothing',
         'cycle_adds' => 'Cycle',
+        
+        // Furniture (multiple sub-tables)
+        'bed_adds' => 'Furniture',
+        'sofa_adds' => 'Furniture',
+        'dining_adds' => 'Furniture',
+        'sidetable_adds' => 'Furniture',
+        
+        // Appliances (multiple sub-tables)
+        'ac_adds' => 'Appliances',
+        'computer_adds' => 'Appliances',
+        'printer_adds' => 'Appliances',
+        'refrigerator_adds' => 'Appliances',
+        'tv_adds' => 'Appliances',
+        'washing_machine_adds' => 'Appliances',
+        'purifier_adds' => 'Appliances',
+        
+        // Kitchen (multiple sub-tables)
+        'chimney_adds' => 'Kitchen',
+        'hob_adds' => 'Kitchen',
+        
+        // Music (multiple sub-tables)
+        'guitar_adds' => 'Music',
+        'drum_adds' => 'Music',
+        'harmonium_adds' => 'Music',
+        'keyboard_adds' => 'Music',
+        'tabla_adds' => 'Music',
+        'cajon_adds' => 'Music',
+        
+        // Fitness (multiple sub-tables)
+        'treadmill_adds' => 'Fitness',
+        'massager_adds' => 'Fitness',
+        'excercise_bike_adds' => 'Fitness',
+        'cross_trainer_adds' => 'Fitness',
+        
+        // Clothing
+        'clothing_adds' => 'Clothing',
+        
+        // Camera
+        'camera_adds' => 'Camera',
+        
+        // Medical (multiple sub-tables)
         'medical_adds' => 'Medical',
-        'music_adds' => 'Music',
-        'kitchen_adds' => 'Kitchen',
-        'fitness_adds' => 'Fitness'
+        'crutches_adds' => 'Medical',
+        'wheelchair_adds' => 'Medical'
     );
     
     foreach($ad_tables as $table => $category) {
+        // Check if table exists
+        $table_exists_query = "SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '$table'";
+        $table_exists_result = $conn->query($table_exists_query);
+        
+        if(!$table_exists_result || $table_exists_result->num_rows == 0) {
+            // Table doesn't exist, skip it
+            continue;
+        }
+        
         // Check if status and image_url columns exist in the table
         $columns_query = "SHOW COLUMNS FROM $table LIKE 'status'";
         $columns_result = $conn->query($columns_query);

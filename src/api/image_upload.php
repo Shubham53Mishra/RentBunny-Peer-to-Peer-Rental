@@ -119,6 +119,8 @@ if (!is_dir($upload_dir)) {
 }
 
 $uploaded_files = [];
+$upload_errors = [];
+$debug_files = [];
 $file_count = is_array($_FILES['image']['name']) ? count($_FILES['image']['name']) : 1;
 
 // Handle file uploads - supports both single and multiple files
@@ -134,24 +136,44 @@ if(!is_array($_FILES['image']['name'])) {
 
 foreach($_FILES['image']['tmp_name'] as $key => $tmp_name) {
     if(empty($tmp_name)) {
+        $debug_files[] = [
+            'index' => $key,
+            'filename' => $_FILES['image']['name'][$key],
+            'status' => 'Skipped - empty tmp_name'
+        ];
         continue;
     }
     
+    $debug_files[] = [
+        'index' => $key,
+        'filename' => $_FILES['image']['name'][$key],
+        'size' => $_FILES['image']['size'][$key],
+        'error_code' => $_FILES['image']['error'][$key]
+    ];
+    
     if($_FILES['image']['error'][$key] != UPLOAD_ERR_OK) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'File upload error: ' . $_FILES['image']['error'][$key]]);
-        exit;
+        $upload_errors[] = [
+            'filename' => $_FILES['image']['name'][$key],
+            'error' => 'Upload error: ' . $_FILES['image']['error'][$key]
+        ];
+        $debug_files[$key]['status'] = 'Failed - Upload error';
+        continue;
     }
 
     $file_extension = pathinfo($_FILES['image']['name'][$key], PATHINFO_EXTENSION);
     $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
     if(!in_array(strtolower($file_extension), $allowed_extensions)) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Invalid file type. Only jpg, jpeg, png, gif, webp allowed']);
-        exit;
+        $upload_errors[] = [
+            'filename' => $_FILES['image']['name'][$key],
+            'error' => 'Invalid file type. Only jpg, jpeg, png, gif, webp allowed'
+        ];
+        $debug_files[$key]['status'] = 'Failed - Invalid file extension: ' . $file_extension;
+        continue;
     }
 
-    $filename = $add_id . '_' . time() . '_' . rand(1000, 9999) . '.' . $file_extension;
+    // Use microtime for better uniqueness with multiple simultaneous uploads
+    $unique_id = str_replace('.', '', microtime(true)) . '_' . uniqid();
+    $filename = $add_id . '_' . $unique_id . '.' . $file_extension;
     $upload_path = $upload_dir . $filename;
 
     if(move_uploaded_file($tmp_name, $upload_path)) {
@@ -160,11 +182,27 @@ foreach($_FILES['image']['tmp_name'] as $key => $tmp_name) {
             'path' => $upload_path,
             'url' => "/{$table_name}/{$add_id}/{$filename}"
         ];
+        $debug_files[$key]['status'] = 'Success - Uploaded';
+        $debug_files[$key]['final_filename'] = $filename;
     } else {
-        http_response_code(500);
-        echo json_encode(['success' => false, 'message' => 'Failed to upload file']);
-        exit;
+        $upload_errors[] = [
+            'filename' => $_FILES['image']['name'][$key],
+            'error' => 'Failed to move uploaded file to destination'
+        ];
+        $debug_files[$key]['status'] = 'Failed - move_uploaded_file() failed';
+        continue;
     }
+}
+
+// If no files were uploaded successfully, return error
+if(empty($uploaded_files)) {
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => 'No files were uploaded successfully',
+        'errors' => $upload_errors
+    ]);
+    exit;
 }
 
 // Store image records in database
@@ -213,9 +251,29 @@ $response['success'] = true;
 $response['message'] = 'Images uploaded successfully';
 $response['data'] = [
     'files_uploaded' => count($uploaded_files),
+    'total_files_received' => $file_count,
     'image_urls' => $image_urls,
     'files' => $uploaded_files
 ];
+
+// Add debug info showing what happened to each file and server limits
+$response['debug'] = [
+    'file_processing' => $debug_files,
+    'server_limits' => [
+        'upload_max_filesize' => ini_get('upload_max_filesize'),
+        'post_max_size' => ini_get('post_max_size'),
+        'memory_limit' => ini_get('memory_limit'),
+        'max_execution_time' => ini_get('max_execution_time')
+    ]
+];
+
+// Add warnings if some files failed to upload
+if(!empty($upload_errors)) {
+    $response['warnings'] = [
+        'failed_uploads' => count($upload_errors),
+        'errors' => $upload_errors
+    ];
+}
 
 echo json_encode($response);
 $conn->close();
